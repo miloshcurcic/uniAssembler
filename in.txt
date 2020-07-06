@@ -1,0 +1,22 @@
+.section text:
+kvadrat:
+	mul	%r0, %r2
+	mov	(%r0), 0x1234
+	ret
+.section text:
+	.global	main
+main:
+	push	$0x1234
+	mov	%r2, 8(%r4)
+	call	atoi
+	mov	loc(%r2), loc(%pc)
+	mov loc, 0b1010101010
+	call	*(%r2)
+	movb	%r1l, %r2h
+	call	*loc
+	pop	loc
+	ret
+.end
+	movb	%r1l, %r2h
+	movb	%r1l, %r2h
+	movb	%r1l, %r2h
