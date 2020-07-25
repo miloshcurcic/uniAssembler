@@ -1,17 +1,21 @@
-.section text:
+
+.equ a, 0x1234 + 0x4567 + b + c + d - e + f
+.section text
+.extern bruh
 kvadrat:
 	mul	%r0, %r2
-	mov	(%r0), 0x1234
+	mov	0x1234, (%r0)
 	ret
-.section text:
+.section text
 	.global	main
 main:
 	push	$0x1234
 	mov	%r2, 8(%r4)
 	call	atoi
-	mov	loc(%r2), loc(%pc)
-	mov loc, 0b1010101010
+	mov	loc(%r2), 0x1234
+	mov 0b1010101010, loc
 	call	*(%r2)
+	.equ a, 0x1234 + 0x4567
 	movb	%r1l, %r2h
 	call	*loc
 	pop	loc

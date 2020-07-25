@@ -1,42 +1,49 @@
 IDIR = ./include
 OUTDIR = ./out
-OBJDIR = $(OUTDIR)/obj
+POUTDIR = $(OUTDIR)/parsing
+OUTOBJDIR = $(OUTDIR)/obj
+POUTOBJDIR = $(POUTDIR)/obj
+POUTSRCDIR = $(POUTDIR)/src
+POUTINCDIR = $(POUTDIR)/include
 SRCDIR = ./src
 
 CC = g++
-CFLAGS = -Wall -I$(IDIR)
+CFLAGS = -Wall -I$(IDIR) -I$(POUTINCDIR)
 
 PROGRAM = assembler
 
-SRC = $(SRCDIR)/parser.cpp $(SRCDIR)/scanner.cpp $(wildcard $(SRCDIR)/*.cpp)
-OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC))
+SRC = $(wildcard $(SRCDIR)/*.cpp)
+OBJ = $(patsubst $(SRCDIR)/%.cpp,$(OUTOBJDIR)/%.o,$(SRC))
+POBJ = $(POUTOBJDIR)/scanner.o $(POUTOBJDIR)/parser.o
 
-$(OUTDIR)/$(PROGRAM): $(OBJ)
+$(OUTDIR)/$(PROGRAM): $(POBJ) $(OBJ)
 	$(CC) -o $@ $^
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+$(OUTOBJDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CC) -MMD -o $@ -c $< $(CFLAGS)
 
-$(OBJDIR)/scanner.o: $(SRCDIR)/parser.cpp
-$(OBJDIR)/parser.o: $(SRCDIR)/scanner.cpp
+$(POUTOBJDIR)/%.o: $(POUTSRCDIR)/%.cpp
+	$(CC) -MMD -o $@ -c $< $(CFLAGS)
 
-$(SRCDIR)/scanner.cpp: $(SRCDIR)/scanner.l
-	flex -o $@ --header-file=$(IDIR)/scanner.h $<
+$(POUTOBJDIR)/scanner.o: $(POUTSRCDIR)/parser.cpp
+$(POUTOBJDIR)/parser.o: $(POUTSRCDIR)/scanner.cpp
 
-$(SRCDIR)/parser.cpp: $(SRCDIR)/parser.y
-	bison -o $@ --define=api.location.file='"../include/location.h"'  --defines=$(IDIR)/parser.h $<
+$(POUTSRCDIR)/scanner.cpp: $(SRCDIR)/scanner.l
+	flex -o $@ --header-file=$(POUTINCDIR)/scanner.h $<
 
--include $(OBJDIR)/*.d
+$(POUTSRCDIR)/parser.cpp: $(SRCDIR)/parser.y
+	bison -o $@ --define=api.location.file='"../include/location.h"'  --defines=$(POUTINCDIR)/parser.h $<
+
+-include $(OUTOBJDIR)/*.d $(POUTOBJDIR)/*.d
 
 clean:
-	rm -f $(OBJDIR)/*.o
-	rm -f $(OBJDIR)/*.d
+	rm -f $(OUTOBJDIR)/*.o
+	rm -f $(OUTOBJDIR)/*.d
+	rm -f $(POUTOBJDIR)/*.o
+	rm -f $(POUTOBJDIR)/*.d
+	rm -f $(POUTSRCDIR)/*.cpp
+	rm -f $(POUTINCDIR)/*.h
 	rm -f $(OUTDIR)/$(PROGRAM)
 	rm -f $(OUTDIR)/*~
-	rm -f $(SRCDIR)/scanner.cpp
-	rm -f $(IDIR)/scanner.h
-	rm -f $(SRCDIR)/parser.cpp
-	rm -f $(IDIR)/parser.h
-	rm -f $(IDIR)/location.h
 
 .PHONY: clean
