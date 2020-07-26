@@ -3,8 +3,9 @@
 
 #include "includes.h"
 
-
-Elf16_Word Cast_Literal(string literal);
-
+class Utility {
+public:
+    static Elf16_Word cast_literal(string literal);
+};
 
 #endif

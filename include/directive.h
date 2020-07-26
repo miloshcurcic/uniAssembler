@@ -15,6 +15,8 @@ struct Directive {
 };
 
 class DirectiveHandler {
+public:
+    static void HandleDirective(Directive* dir);
 };
 
 #endif

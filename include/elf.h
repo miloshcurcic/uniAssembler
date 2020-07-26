@@ -19,6 +19,7 @@ struct Elf16_Header {
 };
 
 enum Elf16_Section_Type : Elf16_Byte {
+    UND,
     PROGBITS,
     SYMTAB,
     STRTAB,
@@ -35,11 +36,9 @@ struct Elf16_SH_Entry {
     Elf16_UWord name;
     Elf16_Section_Type type;
     Elf16_Byte flags;
-    Elf16_Addr addr;
     Elf16_Offs offs;
     Elf16_UWord size;
-    Elf16_UWord link;
-    Elf16_UWord info;
+    Elf16_UWord rel;
 };
 
 enum Elf16_Sym_Link : Elf16_Byte {
@@ -49,8 +48,8 @@ enum Elf16_Sym_Link : Elf16_Byte {
 
 struct Elf16_ST_Entry {
     Elf16_UWord name;
-    Elf16_Addr value;
-    Elf16_Byte link;
+    Elf16_UWord value;
+    Elf16_Sym_Link link;
     Elf16_UWord shndx;
 };
 

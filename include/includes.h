@@ -3,6 +3,8 @@
 
 #include <string>
 #include <list>
+#include <vector>
+#include <unordered_map>
 #include "types.h"
 
 using namespace std;
