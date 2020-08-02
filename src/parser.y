@@ -13,6 +13,7 @@
   #include "types.h"
   #include "instruction.h"
   #include "directive.h"
+  #include "label.h"
   class driver;
 
   using namespace std;
@@ -91,6 +92,9 @@
 %nterm <Directive*> symbol_directive
 %nterm <Directive*> directive
 %nterm <Directive*> assembler_directive
+%nterm <Directive*> content_directive
+
+%nterm <LabeledContent*> labeled_content
 
 %%
 program:
@@ -101,8 +105,8 @@ program:
 ;
 
 assembler_directives:
-  assembler_directive new_lines { cout << "assembler directive" << endl; }
-  | assembler_directives assembler_directive new_lines { cout << "assembler directive" << endl; }
+  assembler_directive new_lines { DirectiveHandler::handle_directive($1); }
+  | assembler_directives assembler_directive new_lines { DirectiveHandler::handle_directive($2); }
 ;
 
 assembler_directive:
@@ -120,23 +124,23 @@ section:
 ;
 
 change_section_directive:
-  SECTION_DIRECTIVE_NAME SYMBOL { cout << "changing section" << endl; }
+  SECTION_DIRECTIVE_NAME SYMBOL { list<string> *temp = new list<string>(); temp->push_back($2); DirectiveHandler::handle_directive(DirectiveHandler::prep_directive($1, temp)); }
 ;
 
 section_code:
-  directive new_lines { cout << "directive" << endl; }
-  | instruction new_lines { cout << "instruction" << endl; }
-  | labeled_content new_lines { cout << "labeled_content" << endl; }
-  | section_code directive new_lines { cout << "directive" << endl; }
-  | section_code instruction new_lines { cout << "instruction" << endl; }
-  | section_code labeled_content new_lines { cout << "labeled_content" << endl; }
+  directive new_lines { DirectiveHandler::handle_directive($1); }
+  | instruction new_lines { InstructionHandler::handle_instruction($1); }
+  | labeled_content new_lines { LabelHandler::handle_labeled_content($1); }
+  | section_code directive new_lines { DirectiveHandler::handle_directive($2); }
+  | section_code instruction new_lines { InstructionHandler::handle_instruction($2); }
+  | section_code labeled_content new_lines { LabelHandler::handle_labeled_content($2); }
 ;
 
 labeled_content:
-  label instruction
-  | label content_directive
-  | label new_lines instruction
-  | label new_lines content_directive
+  label instruction { $$ = LabelHandler::prep_labeled_content($1, $2); }
+  | label content_directive { $$ = LabelHandler::prep_labeled_content($1, $2); }
+  | label new_lines instruction { $$ = LabelHandler::prep_labeled_content($1, $3); }
+  | label new_lines content_directive { $$ = LabelHandler::prep_labeled_content($1, $3); }
 ;
 
 directive: 
@@ -147,8 +151,8 @@ directive:
 ;
 
 content_directive:
-  alloc_directive
-  | skip_directive
+  alloc_directive { $$ = $1; }
+  | skip_directive { $$ = $1; }
 ;
 
 new_lines:
@@ -157,16 +161,16 @@ new_lines:
 ;
 
 alloc_directive:
-  ALLOC_DIRECTIVE_NAME symbol_list  { $$ = new Directive($1, $2); }
-  | ALLOC_DIRECTIVE_NAME literal_list { $$ = new Directive($1, $2); }
+  ALLOC_DIRECTIVE_NAME symbol_list  { $$ = DirectiveHandler::prep_directive($1, $2); }
+  | ALLOC_DIRECTIVE_NAME literal_list { DirectiveHandler::prep_directive($1, $2); }
 ;
 
 skip_directive:
-  SKIP_DIRECTIVE_NAME literal  { list<string> *temp = new list<string>(); temp->push_back($2); $$ = new Directive($1, temp); }
+  SKIP_DIRECTIVE_NAME literal  { list<string> *temp = new list<string>(); temp->push_back($2); $$ = DirectiveHandler::prep_directive($1, temp); }
 ;
 
 equ_directive:
-  EQU_DIRECTIVE_NAME SYMBOL "," expression  { $4->push_front($2); $$ = new Directive($1, $4); }
+  EQU_DIRECTIVE_NAME SYMBOL "," expression  { $4->push_front($2); $$ = DirectiveHandler::prep_directive($1, $4); }
 ; 
 
 expression:
@@ -179,7 +183,7 @@ expression:
 ;
 
 symbol_directive:
-  SYMBOL_DIRECTIVE_NAME symbol_list  { $$ = new Directive($1, $2); }
+  SYMBOL_DIRECTIVE_NAME symbol_list  { $$ = DirectiveHandler::prep_directive($1, $2); }
 ;
 
 instruction:
@@ -187,58 +191,58 @@ instruction:
   | OOP_INS_JMP dst_op_jmp { $$ = InstructionHandler::prep_ins($1, $2); }
   | OOP_INS_DATA_SRC src_op_data_word { $$ = InstructionHandler::prep_ins($1, $2); }
   | OOP_INS_DATA_DST dst_op_data_word { $$ = InstructionHandler::prep_ins($1, $2); }
-  | TOP_INS_DATA_STD src_op_data_word "," dst_op_data_word { $$ = InstructionHandler::prep_ins($1, $2); }
+  | TOP_INS_DATA_STD src_op_data_word "," dst_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4); }
   | TOP_BYTE_INS_DATA_STD src_op_data_byte "," dst_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
   | TOP_INS_DATA_NSTD dst_op_data_word "," src_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4);}
   | TOP_BYTE_INS_DATA_NSTD dst_op_data_byte "," src_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
 ;
 
 src_op_data_byte:
-  "$" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::IMMED, $2, true); }
-  | "$" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::IMMED, $2, false); }
-  | BYTE_REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGDIR, "", false, $1.first, $1.second); }
+  "$" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $2, true); }
+  | "$" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $2, false); }
+  | BYTE_REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1.first, $1.second); }
   | reg_ind { $$ = $1; }
-  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, true); }
-  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, false); }
+  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
+  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, false); }
 ;
 
 src_op_data_word:
-  "$" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::IMMED, $2, true); }
-  | "$" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::IMMED, $2, false); }
-  | REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGDIR, "", false, $1); }
+  "$" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $2, true); }
+  | "$" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $2, false); }
+  | REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1); }
   | reg_ind { $$ = $1; }
-  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, true); }
-  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, true); }
+  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
+  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
 ;
 
 dst_op_data_byte:
-  BYTE_REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGDIR, "", false, $1.first, $1.second); }
+  BYTE_REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1.first, $1.second); }
   | reg_ind { $$ = $1; }
-  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, true); }
-  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, false); }
+  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
+  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, false); }
 ;
 
 dst_op_data_word:
-  REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGDIR, "", false, $1); }
+  REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1); }
   | reg_ind { $$ = $1; }
-  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, true); }
-  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $1, false); }
+  | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
+  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, false); }
 ;
 
 dst_op_jmp:
-  literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::IMMED, $1, true); }
-  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::IMMED, $1, false); }
-  | "*" REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGDIR, "", false, $2); }
+  literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $1, true); }
+  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $1, false); }
+  | "*" REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $2); }
   | "*" reg_ind { $$ = $2; }
-  | "*" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $2, true); }
-  | "*" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::MEMDIR, $2, false); }
+  | "*" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $2, true); }
+  | "*" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $2, false); }
 ;
 
 reg_ind:
-  "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGIND, "", false, $2); }
-  | literal "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGIND, $1, true, $3); }
-  | SYMBOL "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGIND, $1, false, $3);  }
-  | SYMBOL "(" "%pc" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::REGIND, $1, false, Register::R7);  }
+  "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGIND, "", false, $2); }
+  | literal "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, true, $3); }
+  | SYMBOL "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, false, $3);  }
+  | SYMBOL "(" "%pc" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, false, Register::R_7);  }
 ;
 
 symbol_list:

@@ -3,20 +3,29 @@
 
 #include "includes.h"
 
-struct Directive {
-    string dir_name;
-    list<string>* dir_list;
+#define TOTAL_DIR
 
-    Directive(string dir_name, list<string>* dir_list) :
-        dir_name(dir_name),
-        dir_list(dir_list) 
-    {
-    }
+enum DirectiveName {
+    DN_GLOBAL,
+    DN_EXTERN,
+    DN_SECTION,
+    DN_EQU,
+    DN_BYTE,
+    DN_WORD,
+    DN_SKIP,
+    DN_END
+};
+
+struct Directive {
+    DirectiveName dir_name;
+    list<string>* dir_list;
 };
 
 class DirectiveHandler {
 public:
-    static void HandleDirective(Directive* dir);
+    static const string dir_names[];
+    static Directive* prep_directive(string directive, list<string> *dir_list);
+    static void handle_directive(Directive* dir);
 };
 
 #endif

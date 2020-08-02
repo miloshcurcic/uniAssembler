@@ -4,8 +4,8 @@
 #include "includes.h"
 
 enum Elf16_File_Type : Elf16_Byte {
-    REL_F,
-    EXEC_F
+    EFT_REL,
+    EFT_EXEC
 };
 
 struct Elf16_Header {
@@ -19,17 +19,17 @@ struct Elf16_Header {
 };
 
 enum Elf16_Section_Type : Elf16_Byte {
-    UND,
-    PROGBITS,
-    SYMTAB,
-    STRTAB,
-    REL
+    EST_UND,
+    EST_PROGBITS,
+    EST_SYMTAB,
+    EST_STRTAB,
+    EST_REL
 };
 
 enum Elf16_Section_Flag : Elf16_Byte {
-    WRITE,
-    ALLOC,
-    EXECINSTR
+    ESF_WRITE,
+    ESF_ALLOC,
+    ESF_EXECINSTR
 };
 
 struct Elf16_SH_Entry {
@@ -42,8 +42,8 @@ struct Elf16_SH_Entry {
 };
 
 enum Elf16_Sym_Link : Elf16_Byte {
-    LOCAL,
-    GLOBAL
+    ESL_LOCAL,
+    ESL_GLOBAL
 };
 
 struct Elf16_ST_Entry {
@@ -54,8 +54,8 @@ struct Elf16_ST_Entry {
 };
 
 enum Elf16_Rel_Type : Elf16_Byte {
-    R_16,
-    R_PC16
+    ERT_16,
+    ERT_PC16
 };
 
 struct Elf16_RT_Entry {

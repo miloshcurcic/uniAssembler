@@ -1,10 +1,13 @@
 {
     "files.associations": {
+        "*.y": "yacc",
         "array": "cpp",
         "string_view": "cpp",
         "initializer_list": "cpp",
         "utility": "cpp",
         "vector": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "typeinfo": "cpp",
+        "iostream": "cpp"
     }
 }
