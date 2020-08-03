@@ -7,6 +7,7 @@
 # include "driver.h"
 # include "parser.h"
 # include "instruction.h"
+# include "assembler.h"
 
 using namespace std;
 %}

@@ -1,5 +1,8 @@
 #include "label.h"
+#include "instruction.h"
+#include "directive.h"
 #include "logger.h"
+#include "assembler.h"
 
 LabeledContent* LabelHandler::prep_labeled_content(string label, Instruction* ins) {
     auto result = new LabeledContent();
@@ -16,5 +19,13 @@ LabeledContent* LabelHandler::prep_labeled_content(string label, Directive* dir)
 }
 
 void LabelHandler::handle_labeled_content(LabeledContent* content) {
-    Logger::write_log("Labeled content handling not implemented.");
+    Logger::write_log("Defining symbol [" + content->label + "].");
+    Assembler::get_instance().add_or_set_symbol_cur(content->label, Elf16_Sym_Link::ESL_LOCAL);
+    Assembler::get_instance().resolve_forward_refs(content->label);
+
+    if (content->dir != nullptr) {
+        DirectiveHandler::handle_directive(content->dir);;
+    } else {
+        InstructionHandler::handle_instruction(content->ins);
+    }
 }

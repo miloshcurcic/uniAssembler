@@ -4,17 +4,21 @@
 .extern bruh
 kvadrat:
 	mul	%r0, %r2
-	mov	0x1234, (%r0)
+	mov	main, (%r0)
 	ret
 .section text
 	.global	main
 main:
 	push	$0x1234
+pera: .skip 5
+	.byte main, 0x123
+	.word 1234, 0b010101, main, zika
+	.byte 'a', mika
 	mov	%r2, 8(%r4)
 	call	atoi
 	mov	loc(%r2), 0x1234
 	mov 0b1010101010, loc
-	call	*(%r2)
+	call	*nikolapeder(%pc)
 	.equ a, 0x1234 + 0x4567
 	movb	%r1l, %r2h
 	call	*loc

@@ -54,8 +54,9 @@ struct Elf16_ST_Entry {
 };
 
 enum Elf16_Rel_Type : Elf16_Byte {
+    ERT_8,
     ERT_16,
-    ERT_PC16
+    ERT_PC16,
 };
 
 struct Elf16_RT_Entry {

@@ -28,6 +28,14 @@ Instruction* InstructionHandler::prep_ins(string operation, InstructionOperand* 
     if (operation.back() == 'b' && (operation.compare("sub") != 0)) {
         operation.pop_back();
         ins->ins_descr = OpBytes::OB_ONE << INS_SIZE_OFFSET;
+
+        if (ins->op1 != nullptr) {
+            ins->op1->rel_type = Elf16_Rel_Type::ERT_8;
+        }
+
+        if (ins->op2 != nullptr) {
+            ins->op2->rel_type = Elf16_Rel_Type::ERT_8;
+        }
     } else {
         if (operation.back() == 'w') {
             operation.pop_back();
@@ -47,9 +55,9 @@ Instruction* InstructionHandler::prep_ins(string operation, InstructionOperand* 
 
 void InstructionHandler::handle_operand(Elf16_Byte op_descr, InstructionOperand* op) {
     if (op) {
-        Assembler::getInstance().write_to_cur_section(&op->op_descr, 1);
+        Assembler::get_instance().write_to_cur_section(&op->op_descr, 1);
 
-        string log_message = "\t Operand";
+        string log_message = "\tOperand";
 
         auto addressing_type = op->op_descr >> OP_ADDRESSING_OFFSET;
         auto two_byte_ins = (op_descr >> INS_SIZE_OFFSET) & 1;
@@ -73,7 +81,7 @@ void InstructionHandler::handle_operand(Elf16_Byte op_descr, InstructionOperand*
 
                 log_message += ", literal [" + to_string(value) + "]";
             } else {
-                symbol = Assembler::getInstance().find_symbol(op->value);
+                symbol = Assembler::get_instance().find_symbol(op->value);
 
                 if (symbol != nullptr) {
                     value = symbol->value;
@@ -88,36 +96,37 @@ void InstructionHandler::handle_operand(Elf16_Byte op_descr, InstructionOperand*
             }
 
             if (value_defined) {
-                Assembler::getInstance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes);
+                Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes);
             
                 log_message += ", defined";
             } else {
                 log_message += ", not defined";
 
                 if (symbol == nullptr) {
-                    Assembler::getInstance().add_symbol(op->value, 0, Elf16_Sym_Link::ESL_LOCAL, UND_NDX);
+                    Assembler::get_instance().add_symbol(op->value, 0, Elf16_Sym_Link::ESL_LOCAL, UND_NDX);
 
                     log_message += ", added to ST";
                 }
         
                 if (op->rel_type == Elf16_Rel_Type::ERT_16) {
                     const Elf16_UWord zero = 0;
-                    Assembler::getInstance().write_fw_ref_cur(op->value, (Elf16_Byte*)&zero, additional_bytes);
+                    Assembler::get_instance().write_fw_ref_cur(op->value, (Elf16_Byte*)&zero, op->rel_type);
 
-                    log_message += ", added absolute FW ref.";
+                    log_message += ", added absolute FW ref";
                 } else {
                     /* ToDo: What to write ? */
 
-                    log_message += ", added relative FW ref.";
+                    log_message += ", added relative FW ref";
                 }
             }
         }
-        Logger::write_log(log_message);
+        
+        Logger::write_log(log_message + ".");
     }
 }
 
 void InstructionHandler::handle_instruction(Instruction *ins) {
-    Assembler::getInstance().write_to_cur_section(&ins->ins_descr, 1);
+    Assembler::get_instance().write_to_cur_section(&ins->ins_descr, 1);
 
     Logger::write_log("Writing instruction " + op_names[ins->ins_descr >> INS_OPERATION_CODE_OFFSET] + ".");
 

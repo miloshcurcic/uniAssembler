@@ -26,6 +26,8 @@ public:
     static const string dir_names[];
     static Directive* prep_directive(string directive, list<string> *dir_list);
     static void handle_directive(Directive* dir);
+private:
+    static void handle_alloc_directive(Directive* dir, bool two_bytes);
 };
 
 #endif

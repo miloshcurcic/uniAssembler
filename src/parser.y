@@ -75,7 +75,7 @@
 %nterm <string> label
 
 %nterm <list<string>*> symbol_list
-%nterm <list<string>*> literal_list
+%nterm <list<string>*> mixed_list
 %nterm <list<string>*> expression
 
 %nterm <InstructionOperand*> src_op_data_byte
@@ -161,8 +161,7 @@ new_lines:
 ;
 
 alloc_directive:
-  ALLOC_DIRECTIVE_NAME symbol_list  { $$ = DirectiveHandler::prep_directive($1, $2); }
-  | ALLOC_DIRECTIVE_NAME literal_list { DirectiveHandler::prep_directive($1, $2); }
+  ALLOC_DIRECTIVE_NAME mixed_list  { $$ = DirectiveHandler::prep_directive($1, $2); }
 ;
 
 skip_directive:
@@ -212,7 +211,7 @@ src_op_data_word:
   | REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1); }
   | reg_ind { $$ = $1; }
   | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
-  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
+  | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, false); }
 ;
 
 dst_op_data_byte:
@@ -245,14 +244,16 @@ reg_ind:
   | SYMBOL "(" "%pc" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, false, Register::R_7);  }
 ;
 
+mixed_list:
+  SYMBOL { $$ = new list<string>(); $$->push_back($1); }
+  | literal { $$ = new list<string>(); $$->push_back($1); }
+  | mixed_list "," SYMBOL { $$ = $1; $$->push_back($3); }
+  | mixed_list "," literal { $$ = $1; $$->push_back($3); }
+;
+
 symbol_list:
   SYMBOL { $$ = new list<string>(); $$->push_back($1); }
   | symbol_list "," SYMBOL { $$ = $1; $$->push_back($3); }
-;
-
-literal_list:
-  literal { $$ = new list<string>(); $$->push_back($1); }
-  | literal_list "," literal { $$ = $1; $$->push_back($3); }
 ;
 
 label:
