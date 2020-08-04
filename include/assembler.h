@@ -12,6 +12,7 @@
 struct FW_Ref {
     Elf16_Addr addr;
     Elf16_Rel_Type type;
+    Elf16_UWord shndx;
 };
 
 class Assembler {
@@ -26,10 +27,14 @@ public:
     Elf16_ST_Entry* find_symbol(string name);
     void add_symbol(string name, Elf16_UWord value, Elf16_Sym_Link link, Elf16_UWord section);
     void add_or_set_symbol_cur(string name, Elf16_Sym_Link link);
+    void add_or_set_extern_symbol(string name);
+    void add_or_set_global_symbol(string name);
+    void check_global_symbols();
+    void generate_rel_tables();
     void add_forward_ref(string name, Elf16_Addr addr, Elf16_Rel_Type type);
     void resolve_forward_refs(string name);
     void resolve_forward_refs(Elf16_Word ndx);
-    void add_rel_entry(Elf16_UWord section, Elf16_Addr offs, Elf16_Rel_Type type, Elf16_UWord stndx);
+    void write_rel_entry(Elf16_UWord section, Elf16_Addr offs, Elf16_Rel_Type type, Elf16_UWord stndx);
     void write_to_cur_section(const Elf16_Byte *data, Elf16_UWord num);
     void write_fw_ref_cur(string name, const Elf16_Byte *data, Elf16_Rel_Type type);
     void finalize_assembling();
@@ -39,7 +44,8 @@ private:
     vector<vector<Elf16_Byte>> sections;
     unordered_map<string, Elf16_UWord> section_ndxs;
     unordered_map<string, Elf16_UWord> symbol_ndxs;
-    unordered_map<Elf16_UWord, list<FW_Ref>> sym_fw_ref_tab;
+    unordered_map<Elf16_UWord, vector<FW_Ref>> sym_fw_ref_tab;
+    vector<string> external_symbols;
     Elf16_UWord current_section;
     
     Elf16_ST_Entry* find_symbol(Elf16_Word nx);

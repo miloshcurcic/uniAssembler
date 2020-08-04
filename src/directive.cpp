@@ -33,13 +33,24 @@ void DirectiveHandler::handle_alloc_directive(Directive* dir, bool two_bytes) {
             Logger::write_log("\tLiteral [" + val + "].");
         } else {
             auto symbol = Assembler::get_instance().find_symbol(val);
-            
+            bool value_defined = false;
+
             if (symbol != nullptr) {
+                value_defined = symbol->shndx != UND_NDX;
+            }
+
+            if (value_defined) {
                 Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&symbol->value, size);
                 
                 Logger::write_log("\tSymbol [" + val + ", " + to_string(symbol->value) + "].");
             } else {
-                Assembler::get_instance().add_symbol(val, 0, Elf16_Sym_Link::ESL_LOCAL, UND_NDX);
+                string log_message = "\tUndefined symbol [" + val + "]";
+                
+                if (symbol == nullptr) {
+                    Assembler::get_instance().add_symbol(val, 0, Elf16_Sym_Link::ESL_LOCAL, UND_NDX);
+                    
+                    log_message += ", added to ST";
+                }
 
                 const Elf16_UWord zero = 0;
 
@@ -49,7 +60,7 @@ void DirectiveHandler::handle_alloc_directive(Directive* dir, bool two_bytes) {
                     Assembler::get_instance().write_fw_ref_cur(val, (Elf16_Byte*)&zero, Elf16_Rel_Type::ERT_8);
                 }
                 
-                Logger::write_log("\tUndefined symbol [" + val + "], added to ST, added absolute FW ref.");
+                Logger::write_log(log_message + ", added absolute FW ref.");
             }
         }
     }
@@ -58,11 +69,17 @@ void DirectiveHandler::handle_alloc_directive(Directive* dir, bool two_bytes) {
 void DirectiveHandler::handle_directive(Directive* dir) {
     switch (dir->dir_name) {
         case DirectiveName::DN_GLOBAL: {
-            Logger::write_log("Directive handling not implemented.");
+            for (auto& symbol : *dir->dir_list) {
+                Assembler::get_instance().add_or_set_global_symbol(symbol);
+            }
+
             break;
         }
         case DirectiveName::DN_EXTERN:{
-            Logger::write_log("Directive handling not implemented.");
+            for (auto& symbol : *dir->dir_list) {
+                Assembler::get_instance().add_or_set_extern_symbol(symbol);
+            }
+            
             break;
         }
         case DirectiveName::DN_SECTION: {

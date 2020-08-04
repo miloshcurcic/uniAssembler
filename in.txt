@@ -1,12 +1,13 @@
-
-.equ a, 0x1234 + 0x4567 + b + c + d - e + f
-.section text
-.extern bruh
+.extern testiranje, zika, loc, mika, atoi
+.section .first_section
 kvadrat:
 	mul	%r0, %r2
 	mov	main, (%r0)
 	ret
-.section text
+aaa: mov 0b1010101010, loc
+	call	*testiranje(%pc)
+	.equ a, 0x1234 + 0x4567
+.section .second_section
 	.global	main
 main:
 	push	$0x1234
@@ -16,11 +17,13 @@ pera: .skip 5
 	.byte 'a', mika
 	mov	%r2, 8(%r4)
 	call	atoi
+bbb:
+
 	mov	loc(%r2), 0x1234
 	mov 0b1010101010, loc
-	call	*nikolapeder(%pc)
+	call	*testiranje(%pc)
 	.equ a, 0x1234 + 0x4567
-	movb	%r1l, %r2h
+	ccc: movb	%r1l, %r2h
 	call	*loc
 	pop	loc
 	ret

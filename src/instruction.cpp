@@ -127,7 +127,6 @@ void InstructionHandler::handle_operand(Elf16_Byte op_descr, InstructionOperand*
 
 void InstructionHandler::handle_instruction(Instruction *ins) {
     Assembler::get_instance().write_to_cur_section(&ins->ins_descr, 1);
-
     Logger::write_log("Writing instruction " + op_names[ins->ins_descr >> INS_OPERATION_CODE_OFFSET] + ".");
 
     handle_operand(ins->ins_descr, ins->op1);

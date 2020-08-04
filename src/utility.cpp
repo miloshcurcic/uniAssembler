@@ -72,3 +72,15 @@ void Utility::print_str_tab(string name, vector<Elf16_Byte>& section) {
     }
     printf("\n");
 }
+
+void Utility::print_rel_section(string name, vector<Elf16_RT_Entry>& section) {
+    printf("\n#%s\n", name.c_str());
+    printf("#%7s %8s %5s\n", "offset", "type", "stndx");
+    
+    const string type_names[] = { "ERT_8", "ERT_16", "ERT_PC16" };
+    
+    for (uint i = 0; i < section.size(); i++) {
+        printf(" 0x%05x %7s %5d\n", section[i].offs, type_names[section[i].type].c_str(), section[i].stndx);
+    }
+    printf("\n");
+}
