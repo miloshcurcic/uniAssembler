@@ -82,16 +82,15 @@ struct InstructionOperand {
 
 struct Instruction {
     Elf16_Byte ins_descr;
+    InstructionOperand* op0;
     InstructionOperand* op1;
-    InstructionOperand* op2;
 };
 
 class InstructionHandler {
 public:
     static const string op_names[];
     static InstructionOperand* prep_ins_op(AddressingMode mode, string value = "", bool literal_value = false, Register reg = Register::R_0, RegisterByte reg_byte = RegisterByte::RB_LOW);
-    static Instruction* prep_ins(string operation, InstructionOperand* op1 = nullptr, InstructionOperand* op2 = nullptr);
-    static void handle_operand(Elf16_Byte op_descr, InstructionOperand* op);
+    static Instruction* prep_ins(string operation, InstructionOperand* op0 = nullptr, InstructionOperand* op1 = nullptr);
     static void handle_instruction(Instruction* ins);
 };
 

@@ -9,8 +9,8 @@ aaa: mov 0b1010101010, loc
 	.equ a, 0x1234 + 0x4567
 .section .second_section
 	.global	main
-main:
 	push	$0x1234
+main: .byte 1
 pera: .skip 5
 	.byte main, 0x123
 	.word 1234, 0b010101, main, zika
@@ -21,7 +21,7 @@ bbb:
 
 	mov	loc(%r2), 0x1234
 	mov 0b1010101010, loc
-	call	*testiranje(%pc)
+	call	*main(%pc)
 	.equ a, 0x1234 + 0x4567
 	ccc: movb	%r1l, %r2h
 	call	*loc

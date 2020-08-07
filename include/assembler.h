@@ -25,16 +25,18 @@ public:
     
     void switch_to_section(string name);
     Elf16_ST_Entry* find_symbol(string name);
-    void add_symbol(string name, Elf16_UWord value, Elf16_Sym_Link link, Elf16_UWord section);
+    void create_symbol(string name, Elf16_UWord value, Elf16_Sym_Link link, Elf16_UWord section);
     void add_or_set_symbol_cur(string name, Elf16_Sym_Link link);
     void add_or_set_extern_symbol(string name);
     void add_or_set_global_symbol(string name);
     void check_global_symbols();
+    void handle_symbol(string name, Elf16_Rel_Type rel_type, Elf16_Offs next_ins_offs = 0);
     void generate_rel_tables();
     void add_forward_ref(string name, Elf16_Addr addr, Elf16_Rel_Type type);
     void resolve_forward_refs(string name);
     void resolve_forward_refs(Elf16_Word ndx);
-    void write_rel_entry(Elf16_UWord section, Elf16_Addr offs, Elf16_Rel_Type type, Elf16_UWord stndx);
+    void add_rel_entry(Elf16_UWord section, Elf16_Addr offs, Elf16_Rel_Type type, Elf16_UWord stndx);
+    void write_rel_entry_cur(const Elf16_Byte *data, Elf16_Rel_Type type, Elf16_UWord stndx);
     void write_to_cur_section(const Elf16_Byte *data, Elf16_UWord num);
     void write_fw_ref_cur(string name, const Elf16_Byte *data, Elf16_Rel_Type type);
     void finalize_assembling();

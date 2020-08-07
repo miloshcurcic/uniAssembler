@@ -1,5 +1,4 @@
 #include "instruction.h"
-#include "logger.h"
 #include "utility.h"
 #include "assembler.h"
 
@@ -20,26 +19,27 @@ InstructionOperand* InstructionHandler::prep_ins_op(AddressingMode mode, string 
     return op;
 }
 
-Instruction* InstructionHandler::prep_ins(string operation, InstructionOperand* op1, InstructionOperand* op2) {
+Instruction* InstructionHandler::prep_ins(string operation, InstructionOperand* op0, InstructionOperand* op1) {
     Instruction *ins = new Instruction();
+    ins->op0 = op0;
     ins->op1 = op1;
-    ins->op2 = op2;
     
     if (operation.back() == 'b' && (operation.compare("sub") != 0)) {
         operation.pop_back();
         ins->ins_descr = OpBytes::OB_ONE << INS_SIZE_OFFSET;
 
-        if (ins->op1 != nullptr) {
-            ins->op1->rel_type = Elf16_Rel_Type::ERT_8;
-        }
-
-        if (ins->op2 != nullptr) {
-            ins->op2->rel_type = Elf16_Rel_Type::ERT_8;
+        if (ins->op0 != nullptr) {
+            ins->op0->rel_type = Elf16_Rel_Type::ERT_8;
+        
+            if (ins->op1 != nullptr) {
+                ins->op1->rel_type = Elf16_Rel_Type::ERT_8;
+            }
         }
     } else {
         if (operation.back() == 'w') {
             operation.pop_back();
         }
+
         ins->ins_descr = OpBytes::OB_TWO << INS_SIZE_OFFSET;
     }
     
@@ -53,86 +53,59 @@ Instruction* InstructionHandler::prep_ins(string operation, InstructionOperand* 
     return ins;
 }
 
-void InstructionHandler::handle_operand(Elf16_Byte op_descr, InstructionOperand* op) {
-    if (op) {
-        Assembler::get_instance().write_to_cur_section(&op->op_descr, 1);
+void InstructionHandler::handle_instruction(Instruction *ins) {
+    Assembler::get_instance().write_to_cur_section(&ins->ins_descr, 1);
 
-        string log_message = "\tOperand";
+    if (ins->op0) {
+        Assembler::get_instance().write_to_cur_section(&ins->op0->op_descr, sizeof(Elf16_Byte));
 
-        auto addressing_type = op->op_descr >> OP_ADDRESSING_OFFSET;
-        auto two_byte_ins = (op_descr >> INS_SIZE_OFFSET) & 1;
+        auto two_byte_ins = (ins->ins_descr >> INS_SIZE_OFFSET) & 1;
+        auto addressing_type_0 = ins->op0->op_descr >> OP_ADDRESSING_OFFSET;
 
         // Zero, one or two depending on how many additional bytes this operand needs.
-        auto additional_bytes =
-            addressing_type == AddressingMode::AM_REGDIR || addressing_type == AddressingMode::AM_REGIND ? 0 :
-            addressing_type == AddressingMode::AM_BASEREG ? 2 :
+        auto additional_bytes_0 =
+            addressing_type_0 == AddressingMode::AM_REGDIR || addressing_type_0 == AddressingMode::AM_REGIND ? 0 :
+            addressing_type_0 == AddressingMode::AM_BASEREG ? 2 :
             two_byte_ins ? 2 : 1;
-
-        log_message += ", addressing_type [" + to_string(addressing_type) + "], size [" + to_string(additional_bytes + 1) + "]";
-
-        if (additional_bytes != 0) {
-            Elf16_Word value;
-            bool value_defined = false;
-            Elf16_ST_Entry* symbol = nullptr;
-
-            if (op->literal_value) {
-                value = Utility::cast_literal(op->value);
-                value_defined = true;
-
-                log_message += ", literal [" + to_string(value) + "]";
-            } else {
-                symbol = Assembler::get_instance().find_symbol(op->value);
-
-                if (symbol != nullptr) {
-                    value = symbol->value;
-                    value_defined = symbol->shndx != UND_NDX;
-                }
-
-                log_message += ", symbol [" + op->value;
-                if (value_defined) {
-                    log_message += ", " + to_string(value);
-                }
-                log_message += "]";
-            }
-
-            if (value_defined) {
-                Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes);
-            
-                log_message += ", defined";
-            } else {
-                log_message += ", not defined";
-
-                if (symbol == nullptr) {
-                    Assembler::get_instance().add_symbol(op->value, 0, Elf16_Sym_Link::ESL_LOCAL, UND_NDX);
-
-                    log_message += ", added to ST";
-                }
         
-                if (op->rel_type == Elf16_Rel_Type::ERT_16) {
-                    const Elf16_UWord zero = 0;
-                    Assembler::get_instance().write_fw_ref_cur(op->value, (Elf16_Byte*)&zero, op->rel_type);
+        // Zero, one or two depending on how many additional bytes this operand needs.
+        Elf16_Word additional_bytes_1 = 0;
 
-                    log_message += ", added absolute FW ref";
+        if (ins->op1 != nullptr) {
+            auto addressing_type_1 = ins->op1->op_descr >> OP_ADDRESSING_OFFSET;
+            
+            additional_bytes_1 =
+            addressing_type_1 == AddressingMode::AM_REGDIR || addressing_type_1 == AddressingMode::AM_REGIND ? 0 :
+            addressing_type_1 == AddressingMode::AM_BASEREG ? 2 :
+            two_byte_ins ? 2 : 1;
+        }
+            
+        if (additional_bytes_0 != 0) {
+            if (ins->op0->literal_value) {
+                auto value = Utility::cast_literal(ins->op0->value);
+
+                Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes_0);
+            } else {
+                Assembler::get_instance().handle_symbol(ins->op0->value, ins->op0->rel_type, (additional_bytes_0 + additional_bytes_1 + 1) * sizeof(Elf16_Byte));
+            }
+        }
+
+        if (ins->op1 != nullptr) {
+            Assembler::get_instance().write_to_cur_section(&ins->op1->op_descr, sizeof(Elf16_Byte));
+
+            if (additional_bytes_1 != 0) {
+                if (ins->op1->literal_value) {
+                    auto value = Utility::cast_literal(ins->op1->value);
+
+                    Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes_1);
                 } else {
-                    /* ToDo: What to write ? */
-
-                    log_message += ", added relative FW ref";
+                    Assembler::get_instance().handle_symbol(ins->op1->value, ins->op1->rel_type, additional_bytes_1 * sizeof(Elf16_Byte));
                 }
             }
         }
-        
-        Logger::write_log(log_message + ".");
     }
-}
 
-void InstructionHandler::handle_instruction(Instruction *ins) {
-    Assembler::get_instance().write_to_cur_section(&ins->ins_descr, 1);
-    Logger::write_log("Writing instruction " + op_names[ins->ins_descr >> INS_OPERATION_CODE_OFFSET] + ".");
-
-    handle_operand(ins->ins_descr, ins->op1);
-    handle_operand(ins->ins_descr, ins->op2);
-
+    delete ins->op0;
     delete ins->op1;
-    delete ins->op2;
     delete ins;
 }
