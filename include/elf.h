@@ -68,7 +68,7 @@ enum Elf16_Rel_Type : Elf16_Byte {
 };
 
 struct Elf16_RT_Entry {
-    Elf16_Addr offs;
+    Elf16_Offs offs;
     Elf16_Rel_Type type;
     Elf16_UWord stndx;
 };
