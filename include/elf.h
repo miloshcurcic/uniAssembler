@@ -3,6 +3,14 @@
 
 #include "includes.h"
 
+typedef unsigned short Elf16_Addr;
+typedef unsigned short Elf16_Offs;
+typedef short Elf16_Word;
+typedef unsigned short Elf16_UWord;
+typedef char Elf16_Half;
+typedef unsigned char Elf16_UHalf;
+typedef unsigned char Elf16_Byte;
+
 enum Elf16_File_Type : Elf16_Byte {
     EFT_REL,
     EFT_EXEC
@@ -10,7 +18,7 @@ enum Elf16_File_Type : Elf16_Byte {
 
 struct Elf16_Header {
     Elf16_File_Type type;
-    //Elf16_Addr pentry; // defining this?
+    Elf16_Addr pentry;
     Elf16_Offs phoffs;
     Elf16_UWord phentries;
     Elf16_Offs shoffs;

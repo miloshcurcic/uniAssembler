@@ -173,11 +173,51 @@ void Assembler::check_global_symbols() {
     }
 }
 
+void Assembler::update_headers() {
+    header.type = Elf16_File_Type::EFT_REL;
+    header.pentry = 0;
+    header.phoffs = 0;
+    header.phentries = 0;
+    header.shoffs = sizeof(Elf16_Header);
+    for (auto &value : section_headers) {
+        header.shoffs += value.size;
+    }
+    header.shentries = section_headers.size();
+    header.shstrndx = SH_STR_TAB_NDX;
+
+    auto sum = sizeof(header);
+    for (auto &header : section_headers) {
+        header.offs = sum;
+        sum += header.size;
+    }
+}
+
 void Assembler::finalize_assembling() {
     check_global_symbols();
     generate_rel_tables();
+    update_headers();
 
+    // Binary output
+    ofstream out_file("out.o", ios::out | ios::trunc | ios::binary);
+
+    if (out_file.is_open()) {
+        out_file.write((char*)&header, sizeof(Elf16_Header));
+        
+        for (auto section : sections) {
+            out_file.write((char*)section.data(), section.size());
+        }
+
+        out_file.write((char*)section_headers.data(), section_headers.size() * sizeof(Elf16_SH_Entry));
+    } else {
+        // Error
+    }
+
+    out_file.close();
+
+    // Textual output
+    Utility::print_file_header("out.o", header);
     Utility::print_section_headers(section_headers);
+
     for (uint i = 0; i<sections.size(); i++) {
         if (i == UND_NDX) {
             continue;
@@ -192,6 +232,7 @@ void Assembler::finalize_assembling() {
             Utility::print_section(string((char*)&sections[SH_STR_TAB_NDX][section_headers[i].name]), sections[i]);
         }
     }
+
 }
 
 void Assembler::generate_rel_tables() {
@@ -263,4 +304,9 @@ void Assembler::handle_symbol(string name, Elf16_Rel_Type rel_type, Elf16_Offs n
             write_rel_entry_cur((Elf16_Byte*)&symbol->value, rel_type, symbol_ndxs[string((char*)&sections[SH_STR_TAB_NDX][section_headers[symbol->shndx].name])]); 
         }
     }
+}
+
+void create_internal_symbol(string name, list<string> operations) {
+    
+
 }

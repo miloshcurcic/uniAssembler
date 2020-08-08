@@ -15,6 +15,16 @@ struct FW_Ref {
     Elf16_UWord shndx;
 };
 
+struct IS_Operation {
+    bool subtract;
+    IS_Data* symbol;
+};
+
+struct IS_Data {
+    Elf16_Word value;
+    unordered_map<Elf16_UWord, Elf16_Word> class_ndxs;
+};
+
 class Assembler {
 public: 
     static Assembler& get_instance()
@@ -40,8 +50,10 @@ public:
     void write_to_cur_section(const Elf16_Byte *data, Elf16_UWord num);
     void write_fw_ref_cur(string name, const Elf16_Byte *data, Elf16_Rel_Type type);
     void finalize_assembling();
+    void create_internal_symbol(string name, list<string> symbols);
 private:
     Assembler();
+    Elf16_Header header;
     vector<Elf16_SH_Entry> section_headers;
     vector<vector<Elf16_Byte>> sections;
     unordered_map<string, Elf16_UWord> section_ndxs;
@@ -49,11 +61,15 @@ private:
     unordered_map<Elf16_UWord, vector<FW_Ref>> sym_fw_ref_tab;
     vector<string> external_symbols;
     Elf16_UWord current_section;
+    unordered_map<string, vector<IS_Operation>> equ_operations;
+    unordered_map<string, IS_Data> equ_symbols;
+
     
     Elf16_ST_Entry* find_symbol(Elf16_Word nx);
     Elf16_UWord create_section(string name, Elf16_Section_Type type);
     void write_to_section(string data, Elf16_UWord section);
     void write_to_section(const Elf16_Byte *data, Elf16_UWord num, Elf16_UWord section);
+    void update_headers();
 };
 
 #endif

@@ -94,3 +94,10 @@ void Utility::print_rel_section(string name, vector<Elf16_RT_Entry>& section) {
     }
     printf("\n");
 }
+
+void Utility::print_file_header(string name, Elf16_Header& header) {
+    printf("\n#%s\n", name.c_str());
+    printf("#%6s %11s %11s\n", "sh_offs", "sh_entries", "sh_str_ndx");
+    printf("  0x%04x %11d %11d\n", header.shoffs, header.shentries, header.shstrndx);
+    printf("\n");
+}

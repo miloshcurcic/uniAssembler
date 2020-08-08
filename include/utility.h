@@ -13,6 +13,7 @@ public:
     static void print_str_tab(string name, vector<Elf16_Byte>& section);
     static void print_sym_tab(string name, vector<Elf16_ST_Entry>& section);
     static void print_rel_section(string name, vector<Elf16_RT_Entry>& section);
+    static void print_file_header(string name, Elf16_Header& header);
 };
 
 #endif
