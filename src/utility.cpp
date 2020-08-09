@@ -46,7 +46,7 @@ void Utility::print_sym_tab(string name, vector<Elf16_ST_Entry>& section) {
     printf("\n#%s\n", name.c_str());
     printf("#%6s %6s %4s %5s %5s\n","name", "value", "link", "shndx", "ndx");
     for (uint i = 0; i < section.size(); i++) {
-        printf(" 0x%04x 0x%04x %4c %5s %5d\n", section[i].name, section[i].value, section[i].link ? 'g' : 'l', section[i].shndx ? to_string(section[i].shndx).c_str() : "UND", i);
+        printf(" 0x%04x 0x%04x %4c %5s %5d\n", section[i].name, section[i].value, section[i].link ? 'g' : 'l', (section[i].shndx == UND_NDX ? "UND" : (section[i].shndx == ABS_NDX ? "ABS" : to_string(section[i].shndx).c_str())), i);
     }
     printf("\n");
 }

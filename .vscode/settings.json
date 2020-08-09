@@ -16,6 +16,7 @@
         "system_error": "cpp",
         "type_traits": "cpp",
         "string": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "iosfwd": "cpp"
     }
 }

@@ -34,24 +34,27 @@ void DirectiveHandler::handle_directive(Directive* dir) {
     switch (dir->dir_name) {
         case DirectiveName::DN_GLOBAL: {
             for (auto& symbol : *dir->dir_list) {
-                Assembler::get_instance().add_or_set_global_symbol(symbol);
+                Assembler::get_instance().set_global_symbol(symbol);
             }
 
             break;
         }
         case DirectiveName::DN_EXTERN:{
             for (auto& symbol : *dir->dir_list) {
-                Assembler::get_instance().add_or_set_extern_symbol(symbol);
+                Assembler::get_instance().set_extern_symbol(symbol);
             }
             
             break;
         }
         case DirectiveName::DN_SECTION: {
             auto section = dir->dir_list->back();
-            Assembler::get_instance().switch_to_section(section);
+            Assembler::get_instance().switch_section(section);
             break;
         }
         case DirectiveName::DN_EQU: {
+            auto name = dir->dir_list->front();
+            dir->dir_list->pop_front();
+            Assembler::get_instance().create_internal_symbol(name, *dir->dir_list);
             break;
         }
         case DirectiveName::DN_BYTE: {

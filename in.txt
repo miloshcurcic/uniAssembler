@@ -6,7 +6,7 @@ kvadrat:
 	ret
 aaa: mov 0b1010101010, loc
 	call	*testiranje(%pc)
-	.equ a, 0x1234 + 0x4567
+	.equ a, 0x34 + 0x1200
 .section .second_section
 	.global	main
 	push	$0x1234
@@ -22,8 +22,8 @@ bbb:
 	mov	loc(%r2), 0x1234
 	mov 0b1010101010, loc
 	call	*main(%pc)
-	.equ a, 0x1234 + 0x4567
 	ccc: movb	%r1l, %r2h
+.global a
 	call	*loc
 	pop	loc
 	ret

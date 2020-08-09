@@ -3,8 +3,11 @@
 
 #include "includes.h"
 
+#define UND_NDX 0
+#define ABS_NDX 0xffff
+
 typedef unsigned short Elf16_Addr;
-typedef unsigned short Elf16_Offs;
+typedef short Elf16_Offs;
 typedef short Elf16_Word;
 typedef unsigned short Elf16_UWord;
 typedef char Elf16_Half;
