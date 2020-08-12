@@ -15,7 +15,7 @@
 #define OP_REGISTER_BITS 4
 #define OP_ADDRESSING_BITS 3
 
-enum Operation : Elf16_Byte {
+enum Operation : Byte {
     OP_HALT,
     OP_IRET,
     OP_RET,
@@ -43,12 +43,12 @@ enum Operation : Elf16_Byte {
     OP_SHR
 };
 
-enum OpBytes : Elf16_Byte {
+enum OpBytes : Byte {
     OB_ONE,
     OB_TWO
 };
 
-enum AddressingMode : Elf16_Byte {
+enum AddressingMode : Byte {
     AM_IMMED,
     AM_REGDIR,
     AM_REGIND,
@@ -56,7 +56,7 @@ enum AddressingMode : Elf16_Byte {
     AM_MEMDIR
 };
 
-enum Register : Elf16_Byte {
+enum Register : Byte {
     R_0,
     R_1,
     R_2,
@@ -68,20 +68,20 @@ enum Register : Elf16_Byte {
     R_PSW = 0xF
 };
 
-enum RegisterByte : Elf16_Byte {
+enum RegisterByte : Byte {
     RB_LOW,
     RB_HIGH
 };
 
 struct InstructionOperand {
-    Elf16_Byte op_descr;
+    Byte op_descr;
     string value;
     bool literal_value;
     Elf16_Rel_Type rel_type;
 };
 
 struct Instruction {
-    Elf16_Byte ins_descr;
+    Byte ins_descr;
     InstructionOperand* op0;
     InstructionOperand* op1;
 };

@@ -57,7 +57,7 @@ void InstructionHandler::handle_instruction(Instruction *ins) {
     Assembler::get_instance().write_to_cur_section(&ins->ins_descr, 1);
 
     if (ins->op0) {
-        Assembler::get_instance().write_to_cur_section(&ins->op0->op_descr, sizeof(Elf16_Byte));
+        Assembler::get_instance().write_to_cur_section(&ins->op0->op_descr, sizeof(Byte));
 
         auto two_byte_ins = (ins->ins_descr >> INS_SIZE_OFFSET) & 1;
         auto addressing_type_0 = ins->op0->op_descr >> OP_ADDRESSING_OFFSET;
@@ -69,7 +69,7 @@ void InstructionHandler::handle_instruction(Instruction *ins) {
             two_byte_ins ? 2 : 1;
         
         // Zero, one or two depending on how many additional bytes this operand needs.
-        Elf16_Word additional_bytes_1 = 0;
+        Word additional_bytes_1 = 0;
 
         if (ins->op1 != nullptr) {
             auto addressing_type_1 = ins->op1->op_descr >> OP_ADDRESSING_OFFSET;
@@ -84,22 +84,22 @@ void InstructionHandler::handle_instruction(Instruction *ins) {
             if (ins->op0->literal_value) {
                 auto value = Utility::cast_literal(ins->op0->value);
 
-                Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes_0);
+                Assembler::get_instance().write_to_cur_section((Byte*)&value, additional_bytes_0);
             } else {
-                Assembler::get_instance().handle_symbol(ins->op0->value, ins->op0->rel_type, (additional_bytes_0 + additional_bytes_1 + 1) * sizeof(Elf16_Byte));
+                Assembler::get_instance().handle_symbol(ins->op0->value, ins->op0->rel_type, (additional_bytes_0 + additional_bytes_1 + 1) * sizeof(Byte));
             }
         }
 
         if (ins->op1 != nullptr) {
-            Assembler::get_instance().write_to_cur_section(&ins->op1->op_descr, sizeof(Elf16_Byte));
+            Assembler::get_instance().write_to_cur_section(&ins->op1->op_descr, sizeof(Byte));
 
             if (additional_bytes_1 != 0) {
                 if (ins->op1->literal_value) {
                     auto value = Utility::cast_literal(ins->op1->value);
 
-                    Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&value, additional_bytes_1);
+                    Assembler::get_instance().write_to_cur_section((Byte*)&value, additional_bytes_1);
                 } else {
-                    Assembler::get_instance().handle_symbol(ins->op1->value, ins->op1->rel_type, additional_bytes_1 * sizeof(Elf16_Byte));
+                    Assembler::get_instance().handle_symbol(ins->op1->value, ins->op1->rel_type, additional_bytes_1 * sizeof(Byte));
                 }
             }
         }

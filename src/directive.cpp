@@ -23,7 +23,7 @@ void DirectiveHandler::handle_alloc_directive(Directive* dir, bool two_bytes) {
         if (Utility::is_literal(val)) {
             auto literal_value = Utility::cast_literal(val);
 
-            Assembler::get_instance().write_to_cur_section((Elf16_Byte*)&literal_value, size);
+            Assembler::get_instance().write_to_cur_section((Byte*)&literal_value, size);
         } else {
             Assembler::get_instance().handle_symbol(val, (two_bytes ? Elf16_Rel_Type::ERT_16 : Elf16_Rel_Type::ERT_8));
         }
@@ -70,7 +70,7 @@ void DirectiveHandler::handle_directive(Directive* dir) {
         case DirectiveName::DN_SKIP: {
             auto literal = dir->dir_list->back();
             auto num = Utility::cast_literal(literal);
-            auto temp = (Elf16_Byte*)calloc(num, sizeof(Elf16_Byte));
+            auto temp = (Byte*)calloc(num, sizeof(Byte));
             Assembler::get_instance().write_to_cur_section(temp, num);
             free(temp);
 

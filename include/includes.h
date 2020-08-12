@@ -11,6 +11,8 @@
 #include <set>
 #include <algorithm>
 
+#include "types.h"
+
 using namespace std;
 
 #endif
