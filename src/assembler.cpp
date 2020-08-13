@@ -353,7 +353,7 @@ void Assembler::finalize_global_symbols() {
             // error
         }
 
-        symbol_table[symbol]->bind = Elf16_Sym_Bind::ESB_LOCAL;
+        symbol_table[symbol]->bind = Elf16_Sym_Bind::ESB_GLOBAL;
     }
 }
 
@@ -462,8 +462,8 @@ pair<Elf16_Header, vector<Elf16_SH_Entry>>  Assembler::generate_section_headers(
 }
 
 
-void Assembler::write_binary_output(pair<Elf16_Header, vector<Elf16_SH_Entry>> headers) {
-    ofstream out_file("out.o", ios::out | ios::trunc | ios::binary);
+void Assembler::write_binary_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers) {
+    ofstream out_file(out_file_name, ios::out | ios::trunc | ios::binary);
 
     if (out_file.is_open()) {
         out_file.write((char*)&headers.first, sizeof(Elf16_Header));
@@ -481,8 +481,8 @@ void Assembler::write_binary_output(pair<Elf16_Header, vector<Elf16_SH_Entry>> h
 }
 
 
-void Assembler::write_textual_output(pair<Elf16_Header, vector<Elf16_SH_Entry>> headers) {
-    Utility::print_file_header("out.o", headers.first);
+void Assembler::write_textual_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers) {
+    Utility::print_file_header(out_file_name, headers.first);
     Utility::print_section_headers(headers.second, binary_sections[headers.first.shstrndx]);
     
     for (uint i = 0; i<binary_sections.size(); i++) {
@@ -501,7 +501,7 @@ void Assembler::write_textual_output(pair<Elf16_Header, vector<Elf16_SH_Entry>> 
     }
 }
 
-void Assembler::finalize_assembling() {
+void Assembler::finalize_assembling(string out_file) {
     finalize_internal_symbols();
     finalize_global_symbols();
     finalize_forward_refs();
@@ -511,8 +511,8 @@ void Assembler::finalize_assembling() {
     auto headers = generate_section_headers(ndxs);
 
     // Binary output
-    write_binary_output(headers);
+    write_binary_output(out_file, headers);
 
     // Textual output
-    write_textual_output(headers);
+    write_textual_output(out_file, headers);
 }

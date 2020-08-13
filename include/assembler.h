@@ -62,7 +62,7 @@ public:
     
     void resolve_forward_refs(string name);
 
-    void finalize_assembling();
+    void finalize_assembling(string out_file);
     
     AIS_Data* find_internal_symbol(string name);
     void create_internal_symbol(string name, list<string> symbols);
@@ -104,8 +104,8 @@ private:
     void generate_rel_tabs();
 
 
-    void write_binary_output(pair<Elf16_Header, vector<Elf16_SH_Entry>> headers);
-    void write_textual_output(pair<Elf16_Header, vector<Elf16_SH_Entry>> headers);
+    void write_binary_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers);
+    void write_textual_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers);
 
     Assembler() {
         create_section("", Elf16_Section_Type::EST_UND);

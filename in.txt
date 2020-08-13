@@ -1,7 +1,0 @@
-.section iv_table
-    .word _start
-.section text
-_start:
-    mov 1, %r0
-    halt
-.end

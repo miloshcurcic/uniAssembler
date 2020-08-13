@@ -61,19 +61,17 @@ using namespace std;
 "\.equ" { return yy::parser::make_EQU_DIRECTIVE_NAME(yytext, loc); }
 "\.end" { return yy::parser::make_END(loc); }
 
-([1-9]{1}[0-9]*|"0"[0-7]+|"0"[xX]{1}[0-9abcdefABCDEF]+|"0"[bB]{1}[0-1]+) { return yy::parser::make_NUM_LITERAL(yytext, loc); }
+([1-9]{1}[0-9]*|"0"[0-7]+|"0"[xX]{1}[0-9abcdefABCDEF]+|"0"[bB]{1}[0-1]+|"0") { return yy::parser::make_NUM_LITERAL(yytext, loc); }
 ([a-zA-Z_.]{1}[a-zA-Z0-9_.$]*) { return yy::parser::make_SYMBOL(yytext, loc); }
 
 <<EOF>> { return yy::parser::make_END(loc); }
 %%
 
 void
-driver::scan_begin ()
+Driver::scan_begin ()
 {
-  yy_flex_debug = trace_scanning;
-  if (file.empty () || file == "-")
-    yyin = stdin;
-  else if (!(yyin = fopen (file.c_str (), "r")))
+  yy_flex_debug = 0;
+  if (!(yyin = fopen (file.c_str (), "r")))
     {
       std::cerr << "cannot open " << file << ": " << strerror(errno) << '\n';
       exit (EXIT_FAILURE);
@@ -81,7 +79,7 @@ driver::scan_begin ()
 }
 
 void
-driver::scan_end ()
+Driver::scan_end ()
 {
   fclose (yyin);
 }

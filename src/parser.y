@@ -14,13 +14,13 @@
   #include "instruction.h"
   #include "directive.h"
   #include "label.h"
-  class driver;
+  class Driver;
 
   using namespace std;
 }
 
 // The parsing context.
-%param { driver& drv }
+%param { Driver& drv }
 
 %locations
 
