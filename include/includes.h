@@ -10,6 +10,7 @@
 #include <iostream>
 #include <set>
 #include <algorithm>
+#include <memory>
 
 #include "types.h"
 

@@ -73,7 +73,7 @@ private:
     Elf16_Header header;
     vector<ASH_Entry> section_headers;
     unordered_map<string, Word> section_ndxs;
-    unordered_map<string, AST_Entry*> symbol_table;
+    unordered_map<string, unique_ptr<AST_Entry>> symbol_table;
     unordered_map<Word, vector<ART_Entry>> rel_tables;
     vector<vector<Byte>> binary_sections;
     unordered_map<string, vector<AFW_Ref>> forward_ref_tab;
@@ -81,7 +81,7 @@ private:
     vector<string> global_symbols;
     Word current_section;
     unordered_map<string, set<AIS_Data*>> int_sym_operations;
-    unordered_map<string, AIS_Data*> int_symbols;
+    unordered_map<string, unique_ptr<AIS_Data>> int_symbols;
 
     Word create_section(string name, Elf16_Section_Type type = Elf16_Section_Type::EST_PROGBITS);
     void write_to_section(string data, Word section);
@@ -109,12 +109,6 @@ private:
 
     Assembler() {
         create_section("", Elf16_Section_Type::EST_UND);
-    }
-
-    ~Assembler() {
-        for (auto& ptr:symbol_table) {
-            delete ptr.second;
-        }
     }
 };
 

@@ -30,7 +30,6 @@ bool Utility::is_literal(string value) {
 
 void Utility::print_section_headers(vector<Elf16_SH_Entry>& section, vector<Byte>& sh_str_tab) {
     printf("\n#sections\n");
-    // flags temp removed
     printf("#%6s %10s %6s %5s %5s %5s\n", "name", "type", "offs", "size", "link", "ndx");
     
     const string type_names[] = { "UND", "PROGBITS", "SYMTAB", "STRTAB", "REL" };

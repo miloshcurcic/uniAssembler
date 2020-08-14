@@ -54,9 +54,13 @@
 %token <string> OOP_INS_DATA_SRC
 %token <string> OOP_INS_DATA_DST
 %token <string> TOP_INS_DATA_STD
-%token <string> TOP_INS_DATA_NSTD
+%token <string> TOP_INS_DATA_NSTD_SWITCH
+%token <string> TOP_INS_DATA_NSTD_SRC
+%token <string> TOP_INS_DATA_NSTD_DST
 %token <string> TOP_BYTE_INS_DATA_STD
-%token <string> TOP_BYTE_INS_DATA_NSTD
+%token <string> TOP_BYTE_INS_DATA_NSTD_SWITCH
+%token <string> TOP_BYTE_INS_DATA_NSTD_SRC
+%token <string> TOP_BYTE_INS_DATA_NSTD_DST
 
 %token <string> SYMBOL
 %token <string> NUM_LITERAL
@@ -191,9 +195,13 @@ instruction:
   | OOP_INS_DATA_SRC src_op_data_word { $$ = InstructionHandler::prep_ins($1, $2); }
   | OOP_INS_DATA_DST dst_op_data_word { $$ = InstructionHandler::prep_ins($1, $2); }
   | TOP_INS_DATA_STD src_op_data_word "," dst_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4); }
+  | TOP_INS_DATA_NSTD_SWITCH dst_op_data_word "," src_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4);}
+  | TOP_INS_DATA_NSTD_SRC src_op_data_word "," src_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4);}
+  | TOP_INS_DATA_NSTD_DST dst_op_data_word "," dst_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4);}
   | TOP_BYTE_INS_DATA_STD src_op_data_byte "," dst_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
-  | TOP_INS_DATA_NSTD dst_op_data_word "," src_op_data_word { $$ = InstructionHandler::prep_ins($1, $2, $4);}
-  | TOP_BYTE_INS_DATA_NSTD dst_op_data_byte "," src_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
+  | TOP_BYTE_INS_DATA_NSTD_SWITCH dst_op_data_byte "," src_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
+  | TOP_BYTE_INS_DATA_NSTD_SRC src_op_data_byte "," src_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
+  | TOP_BYTE_INS_DATA_NSTD_DST dst_op_data_byte "," dst_op_data_byte { $$ = InstructionHandler::prep_ins($1, $2, $4); }
 ;
 
 src_op_data_byte:

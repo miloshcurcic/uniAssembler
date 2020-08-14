@@ -49,10 +49,14 @@ using namespace std;
 ("call"|"jmp"|"jeq"|"jne"|"jgt") { return yy::parser::make_OOP_INS_JMP(yytext, loc); }
 ("int"|"pop") { return yy::parser::make_OOP_INS_DATA_DST(yytext, loc); }
 ("push") { return yy::parser::make_OOP_INS_DATA_SRC(yytext, loc); }
-("xchg"|"mov"|"add"|"sub"|"mul"|"div"|"cmp"|"not"|"and"|"or"|"xor"|"test"|"shl")([w]?) { return yy::parser::make_TOP_INS_DATA_STD(yytext, loc); }
-("xchg"|"mov"|"add"|"sub"|"mul"|"div"|"cmp"|"not"|"and"|"or"|"xor"|"test"|"shl")("b") { return yy::parser::make_TOP_BYTE_INS_DATA_STD(yytext, loc); }
-("shr")([w]?) { return yy::parser::make_TOP_INS_DATA_NSTD(yytext, loc); }
-("shr")("b") { return yy::parser::make_TOP_BYTE_INS_DATA_NSTD(yytext, loc); }
+("mov"|"add"|"sub"|"mul"|"div"|"not"|"and"|"or"|"xor"|"shl")([w]?) { return yy::parser::make_TOP_INS_DATA_STD(yytext, loc); }
+("cmp"|"test")([w]?) { return yy::parser::make_TOP_INS_DATA_NSTD_SRC(yytext, loc); }
+("xchg")([w]?) { return yy::parser::make_TOP_INS_DATA_NSTD_DST(yytext, loc); }
+("shr")([w]?) { return yy::parser::make_TOP_INS_DATA_NSTD_SWITCH(yytext, loc); }
+("mov"|"add"|"sub"|"mul"|"div"|"not"|"and"|"or"|"xor"|"shl")("b") { return yy::parser::make_TOP_BYTE_INS_DATA_STD(yytext, loc); }
+("cmp"|"test")("b") { return yy::parser::make_TOP_BYTE_INS_DATA_NSTD_SRC(yytext, loc); }
+("xchg")("b") { return yy::parser::make_TOP_BYTE_INS_DATA_NSTD_DST(yytext, loc); }
+("shr")("b") { return yy::parser::make_TOP_BYTE_INS_DATA_NSTD_SWITCH(yytext, loc); }
 
 ("\.byte"|"\.word") { return yy::parser::make_ALLOC_DIRECTIVE_NAME(yytext, loc); }
 ("\.global"|"\.extern") { return yy::parser::make_SYMBOL_DIRECTIVE_NAME(yytext, loc); }

@@ -1,7 +1,30 @@
-.extern _start, _terminal
+.extern _start
 .section ivt_tab
     .word _start
-    .word 0x0
-    .word 0x0
+    .word _invalid_instruction
+    .word _timer
     .word _terminal
+
+.section ivt_tab.text
+.equ data_in, 0xFF00
+.equ data_out, 0xFF02
+_invalid_instruction:
+    iret
+_timer:
+    iret
+    .equ diff, 'a' - 'A'
+_terminal:
+    mov data_in, %r0
+    mov %r0, data_out
+
+    cmp %r0, $'a'
+    jgt exit
+
+    cmp $'z', %r0
+    jgt exit
+
+    sub $diff, data_out
+exit:
+    iret
 .end
+

@@ -28,10 +28,10 @@ Instruction* InstructionHandler::prep_ins(string operation, InstructionOperand* 
         operation.pop_back();
         ins->ins_descr = OpBytes::OB_ONE << INS_SIZE_OFFSET;
 
-        if (ins->op0 != nullptr) {
+        if (ins->op0 != nullptr && (ins->op0->op_descr >> OP_ADDRESSING_OFFSET) == AddressingMode::AM_IMMED) {
             ins->op0->rel_type = Elf16_Rel_Type::ERT_8;
         
-            if (ins->op1 != nullptr) {
+            if (ins->op1 != nullptr && (ins->op1->op_descr >> OP_ADDRESSING_OFFSET) == AddressingMode::AM_IMMED) {
                 ins->op1->rel_type = Elf16_Rel_Type::ERT_8;
             }
         }

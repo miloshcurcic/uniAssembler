@@ -1,11 +1,9 @@
 #include "assembler.h"
 #include "utility.h"
-
-
+#include "asm_exception.h"
 
 Word Assembler::create_section(string name, Elf16_Section_Type type) {
     auto id = section_headers.size();
-    // Disallow internal section names?
     section_headers.emplace_back(name, type);
     binary_sections.emplace_back();
     section_ndxs[name] = id; 
@@ -42,10 +40,6 @@ void Assembler::write_to_cur_section(const Byte *data, Word num) {
 void Assembler::create_symbol(string name, Word value, Word shndx) {
     Elf16_Sym_Bind bind = Elf16_Sym_Bind::ESB_LOCAL;
 
-    if (int_symbols.find(name) != int_symbols.end()) {
-        // Error, already defined
-    }
-
     if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
         bind = Elf16_Sym_Bind::ESB_GLOBAL;
     }
@@ -54,8 +48,7 @@ void Assembler::create_symbol(string name, Word value, Word shndx) {
         bind = Elf16_Sym_Bind::ESB_GLOBAL;
     }
 
-    auto symbol = new AST_Entry({value, bind, shndx});
-    symbol_table[name] = symbol;   
+    symbol_table[name] = unique_ptr<AST_Entry>(new AST_Entry({value, bind, shndx}));   
 }
 
 void Assembler::create_symbol(string name) {
@@ -64,9 +57,10 @@ void Assembler::create_symbol(string name) {
     if (symbol == nullptr) {
         create_symbol(name, section_headers[current_section].size, current_section);
     } else {
+        // Check if symbol is declared as extern.
         if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
-            /* ToDo: Error */
-            cout << "Error0" << endl;
+            string message = format_string(ERR_DEFINED_SYM_DECLARED_EXTERN, name);
+            throw Assembler_Exception(message);
         }
 
         symbol->value = section_headers[current_section].size;
@@ -84,7 +78,7 @@ AST_Entry* Assembler::find_symbol(string name) {
         return nullptr;
     }
 
-    return symbol->second;
+    return symbol->second.get();
 }
 
 AIS_Data* Assembler::find_internal_symbol(string name) {
@@ -94,16 +88,19 @@ AIS_Data* Assembler::find_internal_symbol(string name) {
         return nullptr;
     }
 
-    return symbol->second;
+    return symbol->second.get();
 }
 
 void Assembler::set_extern_symbol(string name) {
+    // Symbol already set as extern, ignore multiple declarations.
     if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
         return;
     }
 
+    // Check if symbol is set as both, extern and global.
     if (find(global_symbols.begin(), global_symbols.end(), name) != global_symbols.end()) {
-        /* Error, importing own symbol */
+        string message = format_string(ERR_SYM_DECLARED_EXT_AND_GLB, name);
+        throw Assembler_Exception(message);
     }
 
     auto symbol = find_symbol(name);
@@ -112,7 +109,8 @@ void Assembler::set_extern_symbol(string name) {
         external_symbols.push_back(name);
     } else {
         if (symbol->shndx != UND_NDX) {
-            /* ToDo: Error, defined symbol set as extern */
+            string message = format_string(ERR_DEFINED_SYM_DECLARED_EXTERN, name);
+            throw Assembler_Exception(message);
         } else {
             symbol->bind = Elf16_Sym_Bind::ESB_GLOBAL;
         }
@@ -120,12 +118,15 @@ void Assembler::set_extern_symbol(string name) {
 }
 
 void Assembler::set_global_symbol(string name) {
+    // Symbol already set as global, ignore multiple declarations.
     if (find(global_symbols.begin(), global_symbols.end(), name) != global_symbols.end()) {
         return;
     }
 
+    // Check if symbol is set as both, extern and global.
     if (find(global_symbols.begin(), global_symbols.end(), name) != global_symbols.end()) {
-        /* Error, exporting extern symbol */
+        string message = format_string(ERR_SYM_DECLARED_EXT_AND_GLB, name);
+        throw Assembler_Exception(message);
     }
 
     auto symbol = find_symbol(name);
@@ -141,6 +142,7 @@ void Assembler::handle_symbol(string name, Elf16_Rel_Type rel_type, Offs next_in
     auto symbol = find_symbol(name);
     auto int_symbol = find_internal_symbol(name);
 
+    // If a symbol doesn't exist create it and add corresponding forward reference and addend.
     if (symbol == nullptr || symbol->shndx == UND_NDX) {
         if (symbol == nullptr && int_symbol == nullptr) {
             create_symbol(name, 0, UND_NDX);
@@ -151,6 +153,7 @@ void Assembler::handle_symbol(string name, Elf16_Rel_Type rel_type, Offs next_in
         add_fw_ref(name, rel_type);
         write_to_cur_section((Byte*)&value, (rel_type == Elf16_Rel_Type::ERT_8 ? sizeof(Byte) : sizeof(Word)));
     } else {
+        // If a symbol exists, depending on rel_type add corresponding rel entry and addend.
         if (rel_type == Elf16_Rel_Type::ERT_PC16) {
             if (symbol->shndx == current_section) {
                 auto value = symbol->value - next_ins_offs - section_headers[current_section].size;
@@ -164,6 +167,7 @@ void Assembler::handle_symbol(string name, Elf16_Rel_Type rel_type, Offs next_in
                 } else {
                     add_rel_entry(symbol->shndx, current_section, section_headers[current_section].size, rel_type);
                 }
+
                 write_to_cur_section((Byte*)&value, sizeof(Offs));
             }
         } else {
@@ -203,7 +207,7 @@ void Assembler::resolve_int_sym_ops(string name) {
         int_sym->op_list.erase(name);
 
         if (int_sym->op_list.size() == 0) {
-            create_symbol(int_symbols[int_sym->name]);
+            create_symbol(int_symbols[int_sym->name].get());
         }
     }
 
@@ -217,48 +221,73 @@ void Assembler::update_internal_symbol(AIS_Data* symbol, Word coeff, Word value,
 
 void Assembler::create_internal_symbol(string name, list<string> operations) {
     if (symbol_table.find(name) != symbol_table.end()) {
-        if (symbol_table[name]->shndx != UND_NDX) {
-            // Error, already defined
+        if (symbol_table[name]->shndx != UND_NDX) {        
+            string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+            throw Assembler_Exception(message);
         } else {
-            delete symbol_table[name];
+            // Delete undefined symbol entry from sym tab.
             symbol_table.erase(name);
         }
     }
 
-    int_symbols[name] = new AIS_Data();
+    if (int_symbols.find(name) != int_symbols.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw Assembler_Exception(message);
+    }
+
+    int_symbols[name] = unique_ptr<AIS_Data>(new AIS_Data());
     int_symbols[name]->name = name;
 
+    // Loop through operations
     for (auto op_string : operations) {
         string value = op_string.substr(1);
         Word coeff = (op_string[0] == '-' ? -1 : 1);
 
         if (Utility::is_literal(value)) {
+            // If it's a literal add it to value.
             auto val = Utility::cast_literal(value);
 
             int_symbols[name]->value += coeff * val;
         } else {
-            auto symbol = find_symbol(value);
-
+            // If it's a symbol check if it's defined, if it is
+            // update coeff and value, otherwise add it to internal
+            // referencing structures.
             if (value == name) {
-                // symbol definition loop
+                string message = format_string(ERR_SYMBOL_DEFINITION_LOOP, name);
+                throw Assembler_Exception(message);
             }
 
+            auto symbol = find_symbol(value);
+
             if (symbol && symbol->shndx != UND_NDX) {
-               update_internal_symbol(int_symbols[name], coeff, symbol->value, symbol->shndx);
+               update_internal_symbol(int_symbols[name].get(), coeff, symbol->value, symbol->shndx);
             } else {
+                // Add operation to op_list.
+                // .equ a, e + e - e - symbol e will have coeff 1 + 1 - 1 = 1
+                // This value is updated in update_internal_symbol
                 int_symbols[name]->op_list[value] += coeff;
-                int_sym_operations[value].insert(int_symbols[name]);
+
+                // Add defining internal symbol to set of references to int_symbols where
+                // this symbol is used.
+                int_sym_operations[value].insert(int_symbols[name].get());
 
                 if (int_symbols[name]->op_list[value] == 0) {
+                    // Symbol coeff reduced to 0, erase it from internal symbol
+                    // referencing structures.
                     int_symbols[name]->op_list.erase(value);
-                    int_sym_operations.erase(value);
+                    int_sym_operations[value].erase(int_symbols[name].get());
+                    
+                    if (int_sym_operations.size() == 0) {
+                        int_sym_operations.erase(value);
+                    }
                 }
             }
         }
     }
 
+    // If all operations are resolved, create this symbol (move it to sym tab).
     if (int_symbols[name]->op_list.size() == 0) {
-        create_symbol(int_symbols[name]);
+        create_symbol(int_symbols[name].get());
     }
 }
 
@@ -266,6 +295,7 @@ void Assembler::create_symbol(AIS_Data* int_symbol) {
     auto section = ABS_NDX;
     bool error = false;
 
+    // Check overall classification index
     for (auto& entry : int_symbol->class_ndxs) {
         if (entry.first == ABS_NDX) {
             continue;
@@ -282,13 +312,13 @@ void Assembler::create_symbol(AIS_Data* int_symbol) {
     }
 
     if (error) {
-        // ToDo: Handle error
+        string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol->name);
+        throw Assembler_Exception(message);
     }
 
     create_symbol(int_symbol->name, int_symbol->value, section);
 
     auto name = int_symbol->name;
-    delete int_symbol;
     int_symbols.erase(name);
     resolve_forward_refs(name);
     resolve_int_sym_ops(name);
@@ -350,7 +380,8 @@ void Assembler::finalize_forward_refs() {
 void Assembler::finalize_global_symbols() {
     for (auto& symbol : global_symbols) {
         if ((symbol_table.find(symbol) == symbol_table.end()) || (symbol_table[symbol]->shndx == UND_NDX)) {
-            // error
+        string message = format_string(ERR_UNDEF_SYM_DECLARED_GLOBAL, symbol);
+        throw Assembler_Exception(message);
         }
 
         symbol_table[symbol]->bind = Elf16_Sym_Bind::ESB_GLOBAL;
@@ -362,12 +393,14 @@ pair<Word, Word> Assembler::generate_sym_tab() {
     vector<Byte> str_tab;
 
     auto sym_tab_sec = create_section(".symtab", Elf16_Section_Type::EST_SYMTAB);
-    auto str_tab_sec = create_section(".str_tab", Elf16_Section_Type::EST_STRTAB);
+    auto str_tab_sec = create_section(".strtab", Elf16_Section_Type::EST_STRTAB);
     
+    // Insert UND symbol
     string name = "";
     sym_tab.push_back({(Word)str_tab.size(), 0, Elf16_Sym_Bind::ESB_LOCAL, Elf16_Sym_Type::EST_NOTYPE, 0});
     str_tab.insert(str_tab.end(), name.c_str(), name.c_str() + name.length() + 1);
 
+    // Insert SECTION symbols
     for (uint i = 1; i < section_headers.size(); i++) {
         if (section_headers[i].type == Elf16_Section_Type::EST_PROGBITS || section_headers[i].type == Elf16_Section_Type::EST_UND) {
             Elf16_ST_Entry entry = {(Word)str_tab.size(), 0, Elf16_Sym_Bind::ESB_LOCAL, Elf16_Sym_Type::EST_SECTION, (Word)i};
@@ -379,6 +412,7 @@ pair<Word, Word> Assembler::generate_sym_tab() {
         }
     }
 
+    // Insert other symbols
     for (auto& symbol : symbol_table) {
         Elf16_ST_Entry entry = {(Word)str_tab.size(), symbol.second->value, symbol.second->bind, Elf16_Sym_Type::EST_NOTYPE, symbol.second->shndx};
         
@@ -419,7 +453,7 @@ void Assembler::generate_rel_tabs() {
 }
 
 pair<Elf16_Header, vector<Elf16_SH_Entry>>  Assembler::generate_section_headers(pair<Word, Word>  tab_ndxs) {
-    auto sh_str_tab_sec = create_section(".sh_str_tab", Elf16_Section_Type::EST_STRTAB);
+    auto sh_str_tab_sec = create_section(".shstrtab", Elf16_Section_Type::EST_STRTAB);
     Elf16_Header header;
 
     header.type = Elf16_File_Type::EFT_REL;
@@ -474,7 +508,8 @@ void Assembler::write_binary_output(string out_file_name, pair<Elf16_Header, vec
 
         out_file.write((char*)headers.second.data(), headers.second.size() * sizeof(Elf16_SH_Entry));
     } else {
-        // Error
+        string message = format_string(ERR_OPEN_OUT_FILE_FAILED, out_file_name);
+        throw Assembler_Exception(message);
     }
 
     out_file.close();
