@@ -195,7 +195,11 @@ void Assembler::add_rel_entry(Word symbol_section, Word section, Offs offs, Elf1
 }
 
 void Assembler::add_fw_ref(string symbol, Elf16_Rel_Type type) {
-    forward_ref_tab[symbol].push_back({(Offs)section_headers[current_section].size, type, current_section});
+    add_fw_ref(symbol, current_section, section_headers[current_section].size, type);
+}
+
+void Assembler::add_fw_ref(string symbol, Word section, Offs offs, Elf16_Rel_Type type) {
+    forward_ref_tab[symbol].push_back({offs, type, section});
 }
 
 void Assembler::resolve_int_sym_ops(string name) {
@@ -216,7 +220,29 @@ void Assembler::resolve_int_sym_ops(string name) {
 
 void Assembler::update_internal_symbol(AIS_Data* symbol, Word coeff, Word value, Word section) {
     symbol->value += coeff * value;
-    symbol->class_ndxs[section] += coeff;
+    if (section != ABS_NDX) {
+        symbol->class_ndxs[section] += coeff;
+    }
+}
+
+void Assembler::update_internal_symbol_dependency(AIS_Data* int_symbol, string name, Word coeff) {
+    // Add operation to op_list.
+    // .equ a, e + e - e - symbol e will have coeff 1 + 1 - 1 = 1
+    // This value is updated in update_internal_symbol
+    int_symbol->op_list[name] += coeff;
+    // Add defining internal symbol to set of references to int_symbols where
+    // this symbol is used.
+    int_sym_operations[name].insert(int_symbol);
+    if (int_symbol->op_list[name] == 0) {
+        // Symbol coeff reduced to 0, erase it from internal symbol
+        // referencing structures.
+        int_symbol->op_list.erase(name);
+        int_sym_operations[name].erase(int_symbol);
+        
+        if (int_sym_operations[name].size() == 0) {
+            int_sym_operations.erase(name);
+        }
+    }
 }
 
 void Assembler::create_internal_symbol(string name, list<string> operations) {
@@ -262,25 +288,7 @@ void Assembler::create_internal_symbol(string name, list<string> operations) {
             if (symbol && symbol->shndx != UND_NDX) {
                update_internal_symbol(int_symbols[name].get(), coeff, symbol->value, symbol->shndx);
             } else {
-                // Add operation to op_list.
-                // .equ a, e + e - e - symbol e will have coeff 1 + 1 - 1 = 1
-                // This value is updated in update_internal_symbol
-                int_symbols[name]->op_list[value] += coeff;
-
-                // Add defining internal symbol to set of references to int_symbols where
-                // this symbol is used.
-                int_sym_operations[value].insert(int_symbols[name].get());
-
-                if (int_symbols[name]->op_list[value] == 0) {
-                    // Symbol coeff reduced to 0, erase it from internal symbol
-                    // referencing structures.
-                    int_symbols[name]->op_list.erase(value);
-                    int_sym_operations[value].erase(int_symbols[name].get());
-                    
-                    if (int_sym_operations.size() == 0) {
-                        int_sym_operations.erase(value);
-                    }
-                }
+                update_internal_symbol_dependency(int_symbols[name].get(), value, coeff);
             }
         }
     }
@@ -291,16 +299,12 @@ void Assembler::create_internal_symbol(string name, list<string> operations) {
     }
 }
 
-void Assembler::create_symbol(AIS_Data* int_symbol) {
+Word Assembler::get_class_ndx(AIS_Data* int_symbol) {
     auto section = ABS_NDX;
     bool error = false;
 
     // Check overall classification index
     for (auto& entry : int_symbol->class_ndxs) {
-        if (entry.first == ABS_NDX) {
-            continue;
-        }
-
         if (entry.second == 1 && section == ABS_NDX) {
             section = entry.first;
         }
@@ -315,6 +319,12 @@ void Assembler::create_symbol(AIS_Data* int_symbol) {
         string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol->name);
         throw Assembler_Exception(message);
     }
+
+    return section;
+}
+
+void Assembler::create_symbol(AIS_Data* int_symbol) {
+    auto section = get_class_ndx(int_symbol);
 
     create_symbol(int_symbol->name, int_symbol->value, section);
 
@@ -358,21 +368,88 @@ void Assembler::resolve_forward_refs(string name) {
 
 
 void Assembler::finalize_internal_symbols() {
-    for (auto& int_symbol : int_symbols) {
+    bool updated = true;
+    while (updated) {
+        for (auto& int_symbol : int_symbols) {
+            // Symbol is dependant on one other unkown symbol
+            if (int_symbol.second->op_list.size() == 1) {
+                // The other unknown symbol is not another unknown internal symbol
+                auto unknown_symbol_name = int_symbol.second->op_list.begin()->first;
 
+                if (int_symbols.find(unknown_symbol_name) == int_symbols.end()) {
+                    auto section = get_class_ndx(int_symbol.second.get());
+                    if (section != ABS_NDX) {
+                        string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol.first);
+                        throw Assembler_Exception(message);
+                    }
+
+                    // Expand symbol to unknown symbol + const in references to this symbol
+                    for (auto ptr : int_sym_operations[int_symbol.second->name]) {
+                        auto coeff = ptr->op_list[int_symbol.first];
+
+                        // Classification index for the UND symbol can only be 1
+                        if (coeff != 1) {
+                            string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol.first);
+                            throw Assembler_Exception(message);
+                        }
+
+                        ptr->op_list.erase(int_symbol.first);
+                        update_internal_symbol(ptr, coeff, int_symbol.second->value, ABS_NDX);
+                        update_internal_symbol_dependency(ptr, unknown_symbol_name, coeff);
+                    }
+                    int_sym_operations.erase(int_symbol.first);
+
+                    // Add relocation entries for resolved symbol
+                    for (auto& ref : forward_ref_tab[int_symbol.first]) {
+                        switch (ref.type) {
+                            case Elf16_Rel_Type::ERT_PC16: {
+                                *(Addr*)(binary_sections[ref.shndx].data() + ref.offs) += int_symbol.second->value;
+                                break;
+                            }
+                            case Elf16_Rel_Type::ERT_16: {
+                                *(Word*)(binary_sections[ref.shndx].data() + ref.offs) += int_symbol.second->value;
+                                break;
+                            }
+                            case Elf16_Rel_Type::ERT_8: {
+                                *(Byte*)(binary_sections[ref.shndx].data() + ref.offs) += int_symbol.second->value;
+                                break;
+                            }
+                        }
+                        
+                        auto symbol = find_symbol(unknown_symbol_name);
+
+                        if (symbol == nullptr) {
+                            create_symbol(unknown_symbol_name, 0, UND_NDX);
+                        }
+
+                        add_fw_ref(unknown_symbol_name, ref.shndx, ref.offs, ref.type);
+                    }
+
+                    forward_ref_tab.erase(int_symbol.first);
+                    int_symbols.erase(int_symbol.first);
+                    updated = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (int_symbols.size() != 0) {
+        throw Assembler_Exception(ERR_EQU_DEFINITION_LOOP);
     }
 }
 
 void Assembler::finalize_forward_refs() {
     for (auto& symbol_refs : forward_ref_tab) {
-        for (auto& ref : symbol_refs.second) {
-            auto symbol = find_symbol(symbol_refs.first);
+        auto symbol = find_symbol(symbol_refs.first);
 
-            if (symbol != nullptr) {
-                add_rel_entry(symbol, ref.shndx, ref.offs, ref.type);
-            } else {
-                // ToDo: internal symbol...
-            }
+        if (find(external_symbols.begin(), external_symbols.end(), symbol_refs.first) != external_symbols.end()) {
+            string message = format_string(ERR_UNKNOWN_SYMBOL_NOT_DECLARED_EXTERN, symbol_refs.first);
+            throw Assembler_Exception(message);
+        }
+            
+        for (auto& ref : symbol_refs.second) {                
+            add_rel_entry(symbol, ref.shndx, ref.offs, ref.type);
         }
     }
 }
@@ -380,8 +457,8 @@ void Assembler::finalize_forward_refs() {
 void Assembler::finalize_global_symbols() {
     for (auto& symbol : global_symbols) {
         if ((symbol_table.find(symbol) == symbol_table.end()) || (symbol_table[symbol]->shndx == UND_NDX)) {
-        string message = format_string(ERR_UNDEF_SYM_DECLARED_GLOBAL, symbol);
-        throw Assembler_Exception(message);
+            string message = format_string(ERR_UNDEF_SYM_DECLARED_GLOBAL, symbol);
+            throw Assembler_Exception(message);
         }
 
         symbol_table[symbol]->bind = Elf16_Sym_Bind::ESB_GLOBAL;

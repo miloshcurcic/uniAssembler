@@ -86,7 +86,11 @@ void InstructionHandler::handle_instruction(Instruction *ins) {
 
                 Assembler::get_instance().write_to_cur_section((Byte*)&value, additional_bytes_0);
             } else {
-                Assembler::get_instance().handle_symbol(ins->op0->value, ins->op0->rel_type, (additional_bytes_0 + additional_bytes_1 + 1) * sizeof(Byte));
+                if (ins->op1 != nullptr) {
+                    Assembler::get_instance().handle_symbol(ins->op0->value, ins->op0->rel_type, (additional_bytes_0 + additional_bytes_1 + 1) * sizeof(Byte));
+                } else {
+                    Assembler::get_instance().handle_symbol(ins->op0->value, ins->op0->rel_type, (additional_bytes_0 + additional_bytes_1) * sizeof(Byte));    
+                }
             }
         }
 

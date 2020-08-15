@@ -11,20 +11,22 @@
 _invalid_instruction:
     iret
 _timer:
-    iret
-    .equ diff, 'a' - 'A'
-_terminal:
-    mov data_in, %r0
+    add $1, cnt
+    mov cnt, %r0
+    add $'0', %r0
     mov %r0, data_out
-
-    cmp %r0, $'a'
-    jgt exit
-
-    cmp $'z', %r0
-    jgt exit
-
-    sub $diff, data_out
+    cmp cnt, $9
+    jne exit
+    mov $0, cnt
 exit:
     iret
+cnt:
+    .word 0
+_terminal:
+    cmp data_in, $'q'
+    jeq quit
+    iret
+quit:
+    halt
 .end
 

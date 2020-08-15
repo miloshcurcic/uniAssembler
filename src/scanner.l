@@ -65,7 +65,7 @@ using namespace std;
 "\.equ" { return yy::parser::make_EQU_DIRECTIVE_NAME(yytext, loc); }
 "\.end" { return yy::parser::make_END(loc); }
 
-([1-9]{1}[0-9]*|"0"[0-7]+|"0"[xX]{1}[0-9abcdefABCDEF]+|"0"[bB]{1}[0-1]+|"0") { return yy::parser::make_NUM_LITERAL(yytext, loc); }
+(("-")?[1-9]{1}[0-9]*|"0"[0-7]+|"0"[xX]{1}[0-9abcdefABCDEF]+|"0"[bB]{1}[0-1]+|"0") { return yy::parser::make_NUM_LITERAL(yytext, loc); }
 ([a-zA-Z_.]{1}[a-zA-Z0-9_.$]*) { return yy::parser::make_SYMBOL(yytext, loc); }
 
 <<EOF>> { return yy::parser::make_END(loc); }

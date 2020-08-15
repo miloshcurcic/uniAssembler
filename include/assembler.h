@@ -65,6 +65,8 @@ public:
     void finalize_assembling(string out_file);
     
     AIS_Data* find_internal_symbol(string name);
+    Word get_class_ndx(AIS_Data* int_symbol);
+    void update_internal_symbol_dependency(AIS_Data* int_symbol, string name, Word coeff);
     void create_internal_symbol(string name, list<string> symbols);
     void update_internal_symbol(AIS_Data* symbol, Word coeff, Word value, Word section);
     void resolve_int_sym_ops(string name);
@@ -94,6 +96,7 @@ private:
     void add_rel_entry(AST_Entry* symbol, Word section, Offs offs, Elf16_Rel_Type type);
     void add_rel_entry(Word symbol_section, Word section, Offs offs, Elf16_Rel_Type type);
     void add_fw_ref(string symbol, Elf16_Rel_Type type);
+    void add_fw_ref(string symbol, Word section, Offs offs, Elf16_Rel_Type type);
     
     void finalize_internal_symbols();
     void finalize_global_symbols();
