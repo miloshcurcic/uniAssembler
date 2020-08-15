@@ -93,7 +93,7 @@ void Utility::print_rel_section(string name, vector<Elf16_RT_Entry>& section) {
     const string type_names[] = { "ERT_8", "ERT_16", "ERT_PC16" };
     
     for (uint i = 0; i < section.size(); i++) {
-        printf(" 0x%04x %8s %5d %5d\n", section[i].offs, type_names[section[i].type].c_str(), section[i].stndx, i);
+        printf(" 0x%04x %8s %5s %5d\n", section[i].offs, type_names[section[i].type].c_str(), section[i].stndx == ABS_NDX ? "ABS" : to_string(section[i].stndx).c_str(), i);
     }
     printf("\n");
 }

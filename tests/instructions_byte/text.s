@@ -1,4 +1,5 @@
 .global _start
+.extern data_out
 .section text
 _start:
     push char_b

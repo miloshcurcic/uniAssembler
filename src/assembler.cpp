@@ -307,9 +307,7 @@ Word Assembler::get_class_ndx(AIS_Data* int_symbol) {
     for (auto& entry : int_symbol->class_ndxs) {
         if (entry.second == 1 && section == ABS_NDX) {
             section = entry.first;
-        }
-        
-        if (entry.second < 0 || entry.second > 1 || (entry.second == 1 && section != ABS_NDX)) {
+        } else if (entry.second < 0 || entry.second > 1 || (entry.second == 1 && section != ABS_NDX)) {
             error = true;
             break;
         }
@@ -344,11 +342,7 @@ void Assembler::resolve_forward_refs(string name) {
             } else {
                 (Addr&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
 
-                if (symbol->shndx == ABS_NDX) {
-                    add_rel_entry(nullptr, current_section, section_headers[current_section].size, entry.type);
-                } else {
-                    add_rel_entry(symbol->shndx, entry.shndx, entry.offs, entry.type);
-                }
+                add_rel_entry(symbol->shndx, entry.shndx, entry.offs, entry.type);
             }
         } else {
             if (symbol->shndx != ABS_NDX) {
@@ -379,7 +373,7 @@ void Assembler::finalize_internal_symbols() {
 
                 if (int_symbols.find(unknown_symbol_name) == int_symbols.end()) {
                     auto section = get_class_ndx(int_symbol.second.get());
-                    if (section != ABS_NDX) {
+                    if (section != ABS_NDX || int_symbol.second->op_list[unknown_symbol_name] != 1) {
                         string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol.first);
                         throw Assembler_Exception(message);
                     }
@@ -397,6 +391,10 @@ void Assembler::finalize_internal_symbols() {
                         ptr->op_list.erase(int_symbol.first);
                         update_internal_symbol(ptr, coeff, int_symbol.second->value, ABS_NDX);
                         update_internal_symbol_dependency(ptr, unknown_symbol_name, coeff);
+                    
+                        if (ptr->op_list.size() == 0) {
+                            create_symbol(ptr);
+                        }
                     }
                     int_sym_operations.erase(int_symbol.first);
 
@@ -448,7 +446,7 @@ void Assembler::finalize_forward_refs() {
             string message = format_string(ERR_UNKNOWN_SYMBOL_NOT_DECLARED_EXTERN, symbol_refs.first);
             throw Assembler_Exception(message);
         }
-            
+
         for (auto& ref : symbol_refs.second) {                
             add_rel_entry(symbol, ref.shndx, ref.offs, ref.type);
         }

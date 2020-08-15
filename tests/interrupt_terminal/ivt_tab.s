@@ -29,6 +29,7 @@ _terminal:
     sub $diff, data_out
 exit:
     iret
-quit: halt
+quit: 
+    halt
 .end
 

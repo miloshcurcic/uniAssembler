@@ -14,10 +14,6 @@ _invalid_instruction:
 _timer:
     iret
 _terminal:
-    cmp $'q', data_in
-    jeq quit
     iret
-quit: 
-    halt
 .end
 

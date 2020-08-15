@@ -72,7 +72,6 @@ public:
     void resolve_int_sym_ops(string name);
 
 private:
-    Elf16_Header header;
     vector<ASH_Entry> section_headers;
     unordered_map<string, Word> section_ndxs;
     unordered_map<string, unique_ptr<AST_Entry>> symbol_table;
