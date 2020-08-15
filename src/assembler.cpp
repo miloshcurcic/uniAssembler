@@ -370,6 +370,7 @@ void Assembler::resolve_forward_refs(string name) {
 void Assembler::finalize_internal_symbols() {
     bool updated = true;
     while (updated) {
+        updated = false;
         for (auto& int_symbol : int_symbols) {
             // Symbol is dependant on one other unkown symbol
             if (int_symbol.second->op_list.size() == 1) {
@@ -443,7 +444,7 @@ void Assembler::finalize_forward_refs() {
     for (auto& symbol_refs : forward_ref_tab) {
         auto symbol = find_symbol(symbol_refs.first);
 
-        if (find(external_symbols.begin(), external_symbols.end(), symbol_refs.first) != external_symbols.end()) {
+        if (find(external_symbols.begin(), external_symbols.end(), symbol_refs.first) == external_symbols.end()) {
             string message = format_string(ERR_UNKNOWN_SYMBOL_NOT_DECLARED_EXTERN, symbol_refs.first);
             throw Assembler_Exception(message);
         }
