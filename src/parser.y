@@ -44,6 +44,8 @@
   PLUS "+"
   MINUS "-"
   PC_REG "%pc"
+  SP_REG "%sp"
+  PSW_REG "%psw"
   NEW_LINE
   WHITESPACE
 ;
@@ -217,6 +219,9 @@ src_op_data_word:
   "$" literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $2, true); }
   | "$" SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_IMMED, $2, false); }
   | REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1); }
+  | "%pc" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, Register::R_7); }
+  | "%sp" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, Register::R_6); }
+  | "%psw" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, Register::R_PSW); }
   | reg_ind { $$ = $1; }
   | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
   | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, false); }
@@ -231,6 +236,9 @@ dst_op_data_byte:
 
 dst_op_data_word:
   REGISTER { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, $1); }
+  | "%pc" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, Register::R_7); }
+  | "%sp" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, Register::R_6); }
+  | "%psw" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGDIR, "", false, Register::R_PSW); }
   | reg_ind { $$ = $1; }
   | literal { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, true); }
   | SYMBOL { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_MEMDIR, $1, false); }
@@ -247,9 +255,12 @@ dst_op_jmp:
 
 reg_ind:
   "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGIND, "", false, $2); }
+  | "(" "%pc" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGIND, "", false, Register::R_6); }
+  | "(" "%sp" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_REGIND, "", false, Register::R_6); }
   | literal "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, true, $3); }
   | SYMBOL "(" REGISTER ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, false, $3);  }
   | SYMBOL "(" "%pc" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, false, Register::R_7);  }
+  | SYMBOL "(" "%sp" ")" { $$ = InstructionHandler::prep_ins_op(AddressingMode::AM_BASEREG, $1, false, Register::R_6); }
 ;
 
 mixed_list:

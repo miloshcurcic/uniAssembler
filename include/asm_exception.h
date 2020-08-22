@@ -9,7 +9,6 @@
 
 using namespace std;
 
-//const string ERR_RESERVED_NAME = "Symbol '%s' is using one of reserved assembler names.";
 const string ERR_DEFINED_SYM_DECLARED_EXTERN = "Defined symbol '%s' declared as EXTERN.";
 const string ERR_UNDEF_SYM_DECLARED_GLOBAL = "Undefined symbol '%s' declared as GLOBAL.";
 const string ERR_UNKNOWN_SYMBOL_NOT_DECLARED_EXTERN = "Undefined symbol '%s' is not declared as EXTERN.";

@@ -39,6 +39,8 @@ using namespace std;
 "-" { return yy::parser::make_MINUS(loc); }
 
 "%pc" { return yy::parser::make_PC_REG(loc); }
+"%sp" { return yy::parser::make_SP_REG(loc); }
+"%psw" { return yy::parser::make_PSW_REG(loc); }
 
 %r[0-7] { return yy::parser::make_REGISTER((Register)(yytext[2] - '0'), loc); }
 %r[0-7][lh] { return yy::parser::make_BYTE_REGISTER(pair<Register, RegisterByte>((Register)(yytext[2] - '0'), (RegisterByte)(yytext[3] == 'h')), loc); }

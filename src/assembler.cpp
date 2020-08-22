@@ -3,10 +3,22 @@
 #include "asm_exception.h"
 
 Word Assembler::create_section(string name, Elf16_Section_Type type) {
+    if (symbol_table.find(name) != symbol_table.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw Assembler_Exception(message);
+    }
+
+    if (section_ndxs.find(name) != section_ndxs.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw Assembler_Exception(message);    
+    }
+    
     auto id = section_headers.size();
     section_headers.emplace_back(name, type);
     binary_sections.emplace_back();
-    section_ndxs[name] = id; 
+    section_ndxs[name] = id;
+
+    // Resolve fw refs
     return id;
 }
 
@@ -38,6 +50,16 @@ void Assembler::write_to_cur_section(const Byte *data, Word num) {
 
 
 void Assembler::create_symbol(string name, Word value, Word shndx) {
+    if (symbol_table.find(name) != symbol_table.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw Assembler_Exception(message);
+    }
+
+    if (section_ndxs.find(name) != section_ndxs.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw Assembler_Exception(message);    
+    }
+
     Elf16_Sym_Bind bind = Elf16_Sym_Bind::ESB_LOCAL;
 
     if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
@@ -60,6 +82,11 @@ void Assembler::create_symbol(string name) {
         // Check if symbol is declared as extern.
         if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
             string message = format_string(ERR_DEFINED_SYM_DECLARED_EXTERN, name);
+            throw Assembler_Exception(message);
+        }
+
+        if (symbol->shndx != UND_NDX) {
+            string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
             throw Assembler_Exception(message);
         }
 
