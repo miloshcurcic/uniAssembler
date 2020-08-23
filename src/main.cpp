@@ -20,12 +20,12 @@ int main(int argc, char *argv[]) {
 
       if (next_out) {
         if (out_file_name.length() != 0) {
-          throw Assembler_Exception(ERR_OUT_FILE_NAME_ALREADY_SET);
+          throw AssemblerException(ERR_OUT_FILE_NAME_ALREADY_SET);
         }
         out_file_name = argv[i];
       } else {
         if (in_file_name.length() != 0) {
-          throw Assembler_Exception(ERR_IN_FILE_NAME_ALREADY_SET);
+          throw AssemblerException(ERR_IN_FILE_NAME_ALREADY_SET);
         }
         in_file_name = argv[i];
       }
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
       
     }
 
-  } catch (Assembler_Exception& e) {
+  } catch (AssemblerException& e) {
     cout << "ERROR: " << e << endl;
   }
 }

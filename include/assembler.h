@@ -90,6 +90,7 @@ private:
     
 
     void create_symbol(string name, Word value, Word shndx);
+    bool symbol_exists(string name);
     AST_Entry* find_symbol(string name);
    
     void add_rel_entry(AST_Entry* symbol, Word section, Offs offs, Elf16_Rel_Type type);
@@ -104,7 +105,6 @@ private:
     pair<Elf16_Header, vector<Elf16_SH_Entry>> generate_section_headers(pair<Word, Word>  tab_ndxs);
     pair<Word, Word>  generate_sym_tab();
     void generate_rel_tabs();
-
 
     void write_binary_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers);
     void write_textual_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers);

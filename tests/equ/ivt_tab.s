@@ -16,4 +16,3 @@ _timer:
 _terminal:
     iret
 .end
-

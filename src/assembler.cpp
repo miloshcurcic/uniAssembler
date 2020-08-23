@@ -3,14 +3,30 @@
 #include "asm_exception.h"
 
 Word Assembler::create_section(string name, Elf16_Section_Type type) {
-    if (symbol_table.find(name) != symbol_table.end()) {
+    auto symbol = find_symbol(name);
+
+    if (symbol != nullptr) {
+        if (symbol->shndx != UND_NDX) {
+            string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+            throw AssemblerException(message);
+        } else {
+            symbol_table.erase(name);
+        }
+    }
+
+    if (int_symbols.find(name) != int_symbols.end()) {
         string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);    
     }
 
     if (section_ndxs.find(name) != section_ndxs.end()) {
         string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-        throw Assembler_Exception(message);    
+        throw AssemblerException(message);    
+    }
+
+    if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
+        string message = format_string(ERR_SEC_DECLARED_EXT_OR_GLB, name);
+        throw AssemblerException(message);
     }
     
     auto id = section_headers.size();
@@ -18,7 +34,9 @@ Word Assembler::create_section(string name, Elf16_Section_Type type) {
     binary_sections.emplace_back();
     section_ndxs[name] = id;
 
-    // Resolve fw refs
+    resolve_forward_refs(name);
+    resolve_int_sym_ops(name);
+
     return id;
 }
 
@@ -52,18 +70,28 @@ void Assembler::write_to_cur_section(const Byte *data, Word num) {
 void Assembler::create_symbol(string name, Word value, Word shndx) {
     if (symbol_table.find(name) != symbol_table.end()) {
         string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);
     }
 
     if (section_ndxs.find(name) != section_ndxs.end()) {
         string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-        throw Assembler_Exception(message);    
+        throw AssemblerException(message);    
+    }
+
+    if (int_symbols.find(name) != int_symbols.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw AssemblerException(message);    
     }
 
     Elf16_Sym_Bind bind = Elf16_Sym_Bind::ESB_LOCAL;
 
     if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
-        bind = Elf16_Sym_Bind::ESB_GLOBAL;
+        if (shndx != UND_NDX) {
+            string message = format_string(ERR_DEFINED_SYM_DECLARED_EXTERN, name);
+            throw AssemblerException(message);
+        } else {
+            bind = Elf16_Sym_Bind::ESB_GLOBAL;
+        }
     }
 
     if (find(global_symbols.begin(), global_symbols.end(), name) != global_symbols.end()) {
@@ -82,12 +110,12 @@ void Assembler::create_symbol(string name) {
         // Check if symbol is declared as extern.
         if (find(external_symbols.begin(), external_symbols.end(), name) != external_symbols.end()) {
             string message = format_string(ERR_DEFINED_SYM_DECLARED_EXTERN, name);
-            throw Assembler_Exception(message);
+            throw AssemblerException(message);
         }
 
         if (symbol->shndx != UND_NDX) {
             string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-            throw Assembler_Exception(message);
+            throw AssemblerException(message);
         }
 
         symbol->value = section_headers[current_section].size;
@@ -127,7 +155,12 @@ void Assembler::set_extern_symbol(string name) {
     // Check if symbol is set as both, extern and global.
     if (find(global_symbols.begin(), global_symbols.end(), name) != global_symbols.end()) {
         string message = format_string(ERR_SYM_DECLARED_EXT_AND_GLB, name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);
+    }
+    
+    if ((section_ndxs.find(name) != section_ndxs.end())) {
+        string message = format_string(ERR_SEC_DECLARED_EXT_OR_GLB, name);
+        throw AssemblerException(message);    
     }
 
     auto symbol = find_symbol(name);
@@ -137,7 +170,7 @@ void Assembler::set_extern_symbol(string name) {
     } else {
         if (symbol->shndx != UND_NDX) {
             string message = format_string(ERR_DEFINED_SYM_DECLARED_EXTERN, name);
-            throw Assembler_Exception(message);
+            throw AssemblerException(message);
         } else {
             symbol->bind = Elf16_Sym_Bind::ESB_GLOBAL;
         }
@@ -153,7 +186,7 @@ void Assembler::set_global_symbol(string name) {
     // Check if symbol is set as both, extern and global.
     if (find(global_symbols.begin(), global_symbols.end(), name) != global_symbols.end()) {
         string message = format_string(ERR_SYM_DECLARED_EXT_AND_GLB, name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);
     }
 
     auto symbol = find_symbol(name);
@@ -168,9 +201,15 @@ void Assembler::set_global_symbol(string name) {
 void Assembler::handle_symbol(string name, Elf16_Rel_Type rel_type, Offs next_ins_offs) {
     auto symbol = find_symbol(name);
     auto int_symbol = find_internal_symbol(name);
+    
+    if (section_ndxs.find(name) != section_ndxs.end()) {
+        // If section name is used as a symbol add corresponding rel entry and addend.
+        auto value = (rel_type == Elf16_Rel_Type::ERT_PC16 ? -next_ins_offs : 0);
 
-    // If a symbol doesn't exist create it and add corresponding forward reference and addend.
-    if (symbol == nullptr || symbol->shndx == UND_NDX) {
+        add_rel_entry(section_ndxs[name], current_section, section_headers[current_section].size, rel_type);
+        write_to_cur_section((Byte*)&value, (rel_type == Elf16_Rel_Type::ERT_8 ? sizeof(Byte) : sizeof(Word)));
+    } else if (symbol == nullptr || symbol->shndx == UND_NDX) {
+        // If a symbol doesn't exist create it and add corresponding forward reference and addend.
         if (symbol == nullptr && int_symbol == nullptr) {
             create_symbol(name, 0, UND_NDX);
         }
@@ -232,13 +271,25 @@ void Assembler::add_fw_ref(string symbol, Word section, Offs offs, Elf16_Rel_Typ
 void Assembler::resolve_int_sym_ops(string name) {
     auto symbol = find_symbol(name);
 
-    for(auto int_sym : int_sym_operations[name]) {
-        update_internal_symbol(int_sym, int_sym->op_list[name], symbol->value, symbol->shndx);
+    if (symbol != nullptr) {
+        for(auto int_sym : int_sym_operations[name]) {
+            update_internal_symbol(int_sym, int_sym->op_list[name], symbol->value, symbol->shndx);
 
-        int_sym->op_list.erase(name);
+            int_sym->op_list.erase(name);
 
-        if (int_sym->op_list.size() == 0) {
-            create_symbol(int_symbols[int_sym->name].get());
+            if (int_sym->op_list.size() == 0) {
+                create_symbol(int_symbols[int_sym->name].get());
+            }
+        }
+    } else {
+        for(auto int_sym : int_sym_operations[name]) {
+            update_internal_symbol(int_sym, int_sym->op_list[name], 0, section_ndxs[name]);
+    
+            int_sym->op_list.erase(name);
+    
+            if (int_sym->op_list.size() == 0) {
+                create_symbol(int_symbols[int_sym->name].get());
+            }
         }
     }
 
@@ -276,7 +327,7 @@ void Assembler::create_internal_symbol(string name, list<string> operations) {
     if (symbol_table.find(name) != symbol_table.end()) {
         if (symbol_table[name]->shndx != UND_NDX) {        
             string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-            throw Assembler_Exception(message);
+            throw AssemblerException(message);
         } else {
             // Delete undefined symbol entry from sym tab.
             symbol_table.erase(name);
@@ -285,7 +336,12 @@ void Assembler::create_internal_symbol(string name, list<string> operations) {
 
     if (int_symbols.find(name) != int_symbols.end()) {
         string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);
+    }
+
+    if (section_ndxs.find(name) != section_ndxs.end()) {
+        string message = format_string(ERR_MULTIPLE_DEFINITIONS, name);
+        throw AssemblerException(message);    
     }
 
     int_symbols[name] = unique_ptr<AIS_Data>(new AIS_Data());
@@ -307,15 +363,19 @@ void Assembler::create_internal_symbol(string name, list<string> operations) {
             // referencing structures.
             if (value == name) {
                 string message = format_string(ERR_SYMBOL_DEFINITION_LOOP, name);
-                throw Assembler_Exception(message);
+                throw AssemblerException(message);
             }
 
-            auto symbol = find_symbol(value);
-
-            if (symbol && symbol->shndx != UND_NDX) {
-               update_internal_symbol(int_symbols[name].get(), coeff, symbol->value, symbol->shndx);
+            if (section_ndxs.find(value) != section_ndxs.end()) {
+                update_internal_symbol(int_symbols[name].get(), coeff, 0, section_ndxs[value]);
             } else {
-                update_internal_symbol_dependency(int_symbols[name].get(), value, coeff);
+                auto symbol = find_symbol(value);
+
+                if (symbol && symbol->shndx != UND_NDX) {
+                    update_internal_symbol(int_symbols[name].get(), coeff, symbol->value, symbol->shndx);
+                } else {
+                    update_internal_symbol_dependency(int_symbols[name].get(), value, coeff);
+                }
             }
         }
     }
@@ -342,19 +402,20 @@ Word Assembler::get_class_ndx(AIS_Data* int_symbol) {
 
     if (error) {
         string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol->name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);
     }
 
     return section;
 }
 
 void Assembler::create_symbol(AIS_Data* int_symbol) {
+    auto name = int_symbol->name;
+    auto value = int_symbol->value;
     auto section = get_class_ndx(int_symbol);
 
-    create_symbol(int_symbol->name, int_symbol->value, section);
-
-    auto name = int_symbol->name;
     int_symbols.erase(name);
+
+    create_symbol(name, value, section);
     resolve_forward_refs(name);
     resolve_int_sym_ops(name);
 }
@@ -362,25 +423,31 @@ void Assembler::create_symbol(AIS_Data* int_symbol) {
 void Assembler::resolve_forward_refs(string name) {
     auto symbol = find_symbol(name);
 
-    for (auto entry : forward_ref_tab[name]) {
-        if (entry.type == Elf16_Rel_Type::ERT_PC16) {
-            if (symbol->shndx == current_section) {
-                (Addr&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value - entry.offs;
-            } else {
-                (Addr&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
+    if (symbol != nullptr) {
+        for (auto entry : forward_ref_tab[name]) {
+            if (entry.type == Elf16_Rel_Type::ERT_PC16) {
+                if (symbol->shndx == current_section) {
+                    (Addr&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value - entry.offs;
+                } else {
+                    (Addr&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
 
-                add_rel_entry(symbol->shndx, entry.shndx, entry.offs, entry.type);
-            }
-        } else {
-            if (symbol->shndx != ABS_NDX) {
-                add_rel_entry(symbol->shndx, entry.shndx, entry.offs, entry.type);
-            }
-
-            if (entry.type == Elf16_Rel_Type::ERT_8) {
-                (Byte&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
+                    add_rel_entry(symbol->shndx, entry.shndx, entry.offs, entry.type);
+                }
             } else {
-                (Word&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
+                if (symbol->shndx != ABS_NDX) {
+                    add_rel_entry(symbol->shndx, entry.shndx, entry.offs, entry.type);
+                }
+
+                if (entry.type == Elf16_Rel_Type::ERT_8) {
+                    (Byte&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
+                } else {
+                    (Word&)*(binary_sections[entry.shndx].data() + entry.offs) += symbol->value;
+                }
             }
+        }
+    } else {
+        for(auto entry : forward_ref_tab[name]) {
+            add_rel_entry(section_ndxs[name], entry.shndx, entry.offs, entry.type);
         }
     }
 
@@ -402,7 +469,7 @@ void Assembler::finalize_internal_symbols() {
                     auto section = get_class_ndx(int_symbol.second.get());
                     if (section != ABS_NDX || int_symbol.second->op_list[unknown_symbol_name] != 1) {
                         string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol.first);
-                        throw Assembler_Exception(message);
+                        throw AssemblerException(message);
                     }
 
                     // Expand symbol to unknown symbol + const in references to this symbol
@@ -412,7 +479,7 @@ void Assembler::finalize_internal_symbols() {
                         // Classification index for the UND symbol can only be 1
                         if (coeff != 1) {
                             string message = format_string(ERR_INVALID_SYM_CLASS_NDX, int_symbol.first);
-                            throw Assembler_Exception(message);
+                            throw AssemblerException(message);
                         }
 
                         ptr->op_list.erase(int_symbol.first);
@@ -461,7 +528,7 @@ void Assembler::finalize_internal_symbols() {
     }
 
     if (int_symbols.size() != 0) {
-        throw Assembler_Exception(ERR_EQU_DEFINITION_LOOP);
+        throw AssemblerException(ERR_EQU_DEFINITION_LOOP);
     }
 }
 
@@ -471,7 +538,7 @@ void Assembler::finalize_forward_refs() {
 
         if (find(external_symbols.begin(), external_symbols.end(), symbol_refs.first) == external_symbols.end()) {
             string message = format_string(ERR_UNKNOWN_SYMBOL_NOT_DECLARED_EXTERN, symbol_refs.first);
-            throw Assembler_Exception(message);
+            throw AssemblerException(message);
         }
 
         for (auto& ref : symbol_refs.second) {                
@@ -482,9 +549,14 @@ void Assembler::finalize_forward_refs() {
 
 void Assembler::finalize_global_symbols() {
     for (auto& symbol : global_symbols) {
+        if ((section_ndxs.find(symbol) != section_ndxs.end())) {
+            string message = format_string(ERR_SEC_DECLARED_EXT_OR_GLB, symbol);
+            throw AssemblerException(message);    
+        }
+
         if ((symbol_table.find(symbol) == symbol_table.end()) || (symbol_table[symbol]->shndx == UND_NDX)) {
             string message = format_string(ERR_UNDEF_SYM_DECLARED_GLOBAL, symbol);
-            throw Assembler_Exception(message);
+            throw AssemblerException(message);
         }
 
         symbol_table[symbol]->bind = Elf16_Sym_Bind::ESB_GLOBAL;
@@ -500,13 +572,13 @@ pair<Word, Word> Assembler::generate_sym_tab() {
     
     // Insert UND symbol
     string name = "";
-    sym_tab.push_back({(Word)str_tab.size(), 0, Elf16_Sym_Bind::ESB_LOCAL, Elf16_Sym_Type::EST_NOTYPE, 0});
+    sym_tab.push_back({(Offs)str_tab.size(), 0, Elf16_Sym_Bind::ESB_LOCAL, Elf16_Sym_Type::EST_NOTYPE, 0});
     str_tab.insert(str_tab.end(), name.c_str(), name.c_str() + name.length() + 1);
 
     // Insert SECTION symbols
     for (uint i = 1; i < section_headers.size(); i++) {
         if (section_headers[i].type == Elf16_Section_Type::EST_PROGBITS || section_headers[i].type == Elf16_Section_Type::EST_UND) {
-            Elf16_ST_Entry entry = {(Word)str_tab.size(), 0, Elf16_Sym_Bind::ESB_LOCAL, Elf16_Sym_Type::EST_SECTION, (Word)i};
+            Elf16_ST_Entry entry = {(Offs)str_tab.size(), 0, Elf16_Sym_Bind::ESB_LOCAL, Elf16_Sym_Type::EST_SECTION, (Word)i};
             auto name = section_headers[i].name;
 
             str_tab.insert(str_tab.end(), name.c_str(), name.c_str() + name.length() + 1);
@@ -517,7 +589,7 @@ pair<Word, Word> Assembler::generate_sym_tab() {
 
     // Insert other symbols
     for (auto& symbol : symbol_table) {
-        Elf16_ST_Entry entry = {(Word)str_tab.size(), symbol.second->value, symbol.second->bind, Elf16_Sym_Type::EST_NOTYPE, symbol.second->shndx};
+        Elf16_ST_Entry entry = {(Offs)str_tab.size(), symbol.second->value, symbol.second->bind, Elf16_Sym_Type::EST_NOTYPE, symbol.second->shndx};
         
         auto name = symbol.first;
         str_tab.insert(str_tab.end(), name.c_str(), name.c_str() + name.length() + 1);
@@ -560,7 +632,6 @@ pair<Elf16_Header, vector<Elf16_SH_Entry>>  Assembler::generate_section_headers(
     Elf16_Header header;
 
     header.type = Elf16_File_Type::EFT_REL;
-    header.pentry = 0;
     header.phoffs = 0;
     header.phentries = 0;
     header.symtabndx = tab_ndxs.first;
@@ -573,7 +644,7 @@ pair<Elf16_Header, vector<Elf16_SH_Entry>>  Assembler::generate_section_headers(
     Offs prev_size = sizeof(Elf16_Header);
 
     for (uint i=0; i<section_headers.size() - 1; i++) {
-        Elf16_SH_Entry entry = {(Word)sh_str_tab.size(), section_headers[i].type, prev_size, section_headers[i].size, section_headers[i].link};
+        Elf16_SH_Entry entry = {(Offs)sh_str_tab.size(), section_headers[i].type, prev_size, section_headers[i].size, section_headers[i].link};
 
         auto name = section_headers[i].name;
         sh_str_tab.insert(sh_str_tab.end(), name.c_str(), name.c_str() + name.length() + 1);
@@ -583,7 +654,7 @@ pair<Elf16_Header, vector<Elf16_SH_Entry>>  Assembler::generate_section_headers(
     }
 
     auto name = section_headers[sh_str_tab_sec].name;
-    Elf16_SH_Entry entry = {(Word)sh_str_tab.size(), section_headers[sh_str_tab_sec].type, prev_size, (Word)(sh_str_tab.size() + name.size() + 1), section_headers[sh_str_tab_sec].link};
+    Elf16_SH_Entry entry = {(Offs)sh_str_tab.size(), section_headers[sh_str_tab_sec].type, prev_size, (Word)(sh_str_tab.size() + name.size() + 1), section_headers[sh_str_tab_sec].link};
 
     sh_str_tab.insert(sh_str_tab.end(), name.c_str(), name.c_str() + name.length() + 1);
     prev_size += sh_str_tab.size();
@@ -601,10 +672,10 @@ pair<Elf16_Header, vector<Elf16_SH_Entry>>  Assembler::generate_section_headers(
 
 void Assembler::write_binary_output(string out_file_name, pair<Elf16_Header, vector<Elf16_SH_Entry>> headers) {
     ofstream out_file(out_file_name, ios::out | ios::trunc | ios::binary);
-
+    
     if (out_file.is_open()) {
         out_file.write((char*)&headers.first, sizeof(Elf16_Header));
-     
+
         for (auto &section : binary_sections) {
             out_file.write((char*)section.data(), section.size());
         }   
@@ -612,7 +683,7 @@ void Assembler::write_binary_output(string out_file_name, pair<Elf16_Header, vec
         out_file.write((char*)headers.second.data(), headers.second.size() * sizeof(Elf16_SH_Entry));
     } else {
         string message = format_string(ERR_OPEN_OUT_FILE_FAILED, out_file_name);
-        throw Assembler_Exception(message);
+        throw AssemblerException(message);
     }
 
     out_file.close();

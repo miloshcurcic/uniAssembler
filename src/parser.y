@@ -8,11 +8,13 @@
 
 %code requires {
   #include <string>
+  #include <sstream>
   #include <iostream>
   #include <list>
   #include "includes.h"
   #include "instruction.h"
   #include "directive.h"
+  #include "asm_exception.h"
   #include "label.h"
   class Driver;
 
@@ -286,7 +288,22 @@ literal:
 %%
 
 void
-yy::parser::error (const location_type& l, const std::string& m)
+yy::parser::error (const location_type& loc, const std::string& msg)
 {
-  std::cerr << "\n" << l << "\n" << m << '\n';
+  location::counter_type end_col = 0 < loc.end.column ? loc.end.column - 1 : 0;
+  stringstream loc_msg;
+
+  loc_msg << loc.begin;
+  
+  if (loc.end.filename
+      && (!loc.begin.filename
+          || *loc.begin.filename != *loc.end.filename)) {
+    loc_msg << '-' << loc.end.filename << ':' << loc.end.line << '.' << end_col;
+  } else if (loc.begin.line < loc.end.line)
+    loc_msg << '-' << loc.end.line << '.' << end_col;
+  else if (loc.begin.column < end_col)
+    loc_msg << '-' << end_col;
+  
+  string message = format_string(ERR_PARSING, loc_msg.str(), msg);
+  throw AssemblerException(message);
 }

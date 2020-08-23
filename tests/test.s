@@ -1,9 +1,6 @@
-.section text
 .global _start
+.section text
 _start:
-    jmp loop
-_start:
-    jmp loop
+    mov $0x5, 0xff10
 loop:
-    jmp loop
-.end
+jmp loop

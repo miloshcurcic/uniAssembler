@@ -1,4 +1,5 @@
 .extern _start
+.global data_in, data_out
 .section ivt_tab
     .word _start
     .word _invalid_instruction
@@ -11,22 +12,9 @@
 _invalid_instruction:
     iret
 _timer:
-    add $1, cnt
-    mov cnt, %r0
-    add $'0', %r0
-    mov %r0, data_out
-    cmp cnt, $9
-    jne exit
-    mov $0, cnt
-exit:
+    mov $'t', data_out
     iret
-cnt:
-    .word 0
 _terminal:
-    cmp data_in, $'q'
-    jeq quit
+    mov data_in, data_out
     iret
-quit:
-    halt
 .end
-
